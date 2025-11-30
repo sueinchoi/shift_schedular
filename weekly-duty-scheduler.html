@@ -1,0 +1,1551 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>주별 당직표 생성기</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .input-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .result-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        /* 인원 목록 그리드 레이아웃 */
+        #personList {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 12px;
+            margin-top: 15px;
+        }
+
+        .person-entry {
+            background: white;
+            padding: 12px;
+            border-radius: 5px;
+            border-left: 4px solid #3498db;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: box-shadow 0.2s;
+        }
+
+        .person-entry.team-a {
+            border-left-color: #e74c3c;
+        }
+
+        .person-entry.team-b {
+            border-left-color: #2ecc71;
+        }
+
+        .person-entry:hover {
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        }
+
+        .person-entry.edit-mode {
+            border: 2px solid #3498db;
+            box-shadow: 0 0 10px rgba(52, 152, 219, 0.3);
+        }
+
+        .person-entry:not(.edit-mode) {
+            cursor: pointer;
+        }
+
+        .person-entry:not(.edit-mode):hover {
+            background: #f8f9fa;
+        }
+
+        .edit-form-header {
+            background: #3498db;
+            color: white;
+            padding: 8px 12px;
+            margin: -12px -12px 12px -12px;
+            border-radius: 3px 3px 0 0;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .edit-form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .edit-form-field {
+            margin-bottom: 12px;
+        }
+
+        .edit-form-field label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin: 0 0 4px 0;
+            display: block;
+        }
+
+        .edit-form-field input,
+        .edit-form-field select {
+            width: 100%;
+            padding: 8px;
+            font-size: 13px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .edit-form-field input:focus,
+        .edit-form-field select:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
+        }
+
+        .edit-form-buttons {
+            display: flex;
+            gap: 8px;
+            margin-top: 15px;
+        }
+
+        .edit-form-buttons button {
+            flex: 1;
+            padding: 10px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .person-entry h3 {
+            margin: 0 0 8px 0;
+            color: #2c3e50;
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .team-badge {
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: 600;
+        }
+
+        .team-badge.team-a {
+            background: #fee;
+            color: #c0392b;
+        }
+
+        .team-badge.team-b {
+            background: #e8f8f0;
+            color: #27ae60;
+        }
+
+        .person-compact-info {
+            font-size: 12px;
+            color: #666;
+            line-height: 1.5;
+        }
+
+        .person-compact-info strong {
+            color: #2c3e50;
+            font-weight: 600;
+        }
+
+        label {
+            display: block;
+            margin: 8px 0 4px 0;
+            font-weight: 500;
+            color: #555;
+            font-size: 14px;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: background 0.3s;
+            margin: 5px;
+        }
+
+        button:hover {
+            background: #2980b9;
+        }
+
+        button.secondary {
+            background: #95a5a6;
+        }
+
+        button.secondary:hover {
+            background: #7f8c8d;
+        }
+
+        button.danger {
+            background: #e74c3c;
+        }
+
+        button.danger:hover {
+            background: #c0392b;
+        }
+
+        .button-group {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        /* 주별 스케줄 그리드 */
+        .schedule-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .week-card {
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .week-card:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .week-card.mixed-team {
+            background: linear-gradient(135deg, #fff5f5 0%, #f5fff5 100%);
+            border-color: #9b59b6;
+        }
+
+        .week-card.manually-edited {
+            border: 2px solid #f39c12;
+        }
+
+        .week-card.edit-mode {
+            border: 2px solid #3498db;
+            box-shadow: 0 0 10px rgba(52, 152, 219, 0.3);
+        }
+
+        .week-header {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .week-number {
+            font-size: 18px;
+        }
+
+        .mixed-badge {
+            font-size: 10px;
+            background: #9b59b6;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        .week-assignments {
+            font-size: 14px;
+        }
+
+        .assignment-person {
+            padding: 5px 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .assignment-person .team-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .assignment-person .team-indicator.team-a {
+            background: #e74c3c;
+        }
+
+        .assignment-person .team-indicator.team-b {
+            background: #2ecc71;
+        }
+
+        .manual-edit-badge {
+            font-size: 10px;
+            background: #f39c12;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        .edit-controls {
+            margin-top: 10px;
+        }
+
+        .edit-controls select {
+            margin-bottom: 8px;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .stats {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+
+        .stats h3 {
+            margin: 0 0 15px 0;
+            color: #2c3e50;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+        }
+
+        .stat-item {
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .stat-item strong {
+            display: block;
+            color: #2c3e50;
+        }
+
+        .small-text {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .collapsible-section {
+            margin-top: 15px;
+        }
+
+        .collapsible-header {
+            background: #ecf0f1;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .collapsible-header:hover {
+            background: #e0e5e7;
+        }
+
+        .collapsible-content {
+            padding: 15px;
+            background: white;
+            border: 1px solid #ecf0f1;
+            border-top: none;
+            border-radius: 0 0 5px 5px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .week-setting-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+
+        .week-setting-row input[type="checkbox"] {
+            width: auto;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 2px 8px;
+            background: #e8f4fc;
+            color: #2980b9;
+            border-radius: 3px;
+            font-size: 11px;
+            margin: 2px;
+        }
+
+        .tag.vacation {
+            background: #fef5e7;
+            color: #d35400;
+        }
+
+        .tag.preferred {
+            background: #e8f8f0;
+            color: #27ae60;
+        }
+    </style>
+</head>
+<body>
+    <h1>📅 주별 당직표 생성기</h1>
+
+    <div class="container">
+        <!-- 인원 관리 섹션 -->
+        <div class="input-section">
+            <h2>👥 인원 관리</h2>
+
+            <!-- 인원 추가 폼 -->
+            <div class="collapsible-section">
+                <div class="collapsible-header" onclick="toggleSection('addPersonSection')">
+                    ➕ 새 인원 추가
+                    <span id="addPersonToggle">▼</span>
+                </div>
+                <div id="addPersonSection" class="collapsible-content" style="display: none;">
+                    <div class="form-row">
+                        <div>
+                            <label>이름</label>
+                            <input type="text" id="personName" placeholder="이름 입력">
+                        </div>
+                        <div>
+                            <label>팀</label>
+                            <select id="personTeam">
+                                <option value="A">A팀</option>
+                                <option value="B">B팀</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div>
+                            <label>선호 주차 (쉼표로 구분, 예: 1,5,9)</label>
+                            <input type="text" id="preferredWeeks" placeholder="1,5,9">
+                        </div>
+                        <div>
+                            <label>휴가 주차 (쉼표로 구분, 예: 3,7)</label>
+                            <input type="text" id="vacationWeeks" placeholder="3,7">
+                        </div>
+                    </div>
+                    <button onclick="addPerson()">인원 추가</button>
+                </div>
+            </div>
+
+            <!-- 데이터 관리 버튼 -->
+            <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
+                <button onclick="loadSampleData()" class="secondary">📋 예시 데이터</button>
+                <button onclick="downloadJSON()" class="secondary">💾 저장</button>
+                <label style="display: inline-block; margin: 0;">
+                    <input type="file" id="uploadFile" accept=".json" onchange="uploadJSON(event)" style="display: none;">
+                    <button onclick="document.getElementById('uploadFile').click()" class="secondary">📂 불러오기</button>
+                </label>
+                <button onclick="clearAllData()" class="danger">🗑️ 초기화</button>
+            </div>
+
+            <!-- 인원 목록 -->
+            <div id="personList">
+                <p class="small-text">등록된 인원이 없습니다. 위에서 인원을 추가하거나 예시 데이터를 불러오세요.</p>
+            </div>
+        </div>
+
+        <!-- 당직표 섹션 -->
+        <div class="result-section">
+            <h2>📅 주별 당직표</h2>
+
+            <!-- 설정 -->
+            <div style="background: #f0f8ff; padding: 15px; border-radius: 5px; margin-bottom: 15px;">
+                <label style="font-size: 14px; font-weight: 600; color: #2c3e50; margin-bottom: 8px; display: block;">⚙️ 당직표 설정</label>
+                <div class="form-row">
+                    <div>
+                        <label>총 주 수</label>
+                        <input type="number" id="totalWeeks" value="12" min="1" max="52">
+                    </div>
+                    <div>
+                        <label>주당 인원 수</label>
+                        <input type="number" id="peoplePerWeek" value="2" min="1" max="5">
+                    </div>
+                    <div>
+                        <label>최소 간격 (주)</label>
+                        <input type="number" id="minGap" value="4" min="1" max="10">
+                    </div>
+                    <div>
+                        <label>1인당 최대 횟수</label>
+                        <input type="number" id="maxDutyPerPerson" value="2" min="1" max="10">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 혼합팀 주차 설정 -->
+            <div style="background: #fff5f0; padding: 15px; border-radius: 5px; margin-bottom: 15px;">
+                <label style="font-size: 14px; font-weight: 600; color: #2c3e50; margin-bottom: 8px; display: block;">🔀 혼합팀 주차 설정 (A팀 1명 + B팀 1명)</label>
+                <div id="mixedWeekSettings" style="max-height: 200px; overflow-y: auto;">
+                    <!-- 동적으로 생성됨 -->
+                </div>
+                <button onclick="updateMixedWeekSettings()" class="secondary" style="margin-top: 10px; padding: 8px 16px; font-size: 13px;">설정 새로고침</button>
+            </div>
+
+            <div id="scheduleWarning" class="alert alert-error" style="display: none; font-size: 13px; margin-bottom: 10px;">
+                ⚠️ <strong>인원 정보가 변경되었습니다.</strong> 변경된 정보를 반영하려면 당직표를 다시 생성해주세요.
+            </div>
+
+            <div class="button-group">
+                <button onclick="generateSchedule()">🎯 당직표 생성</button>
+                <button onclick="generateMultipleSchedules()">🔄 여러 경우 생성 (5개)</button>
+                <button onclick="exportSchedule()" class="secondary">💾 내보내기</button>
+            </div>
+
+            <div id="scheduleNavigation" style="display: none; text-align: center; margin: 15px 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                <button onclick="prevSchedule()" class="secondary" style="padding: 8px 16px;">◀ 이전</button>
+                <span id="scheduleIndicator" style="margin: 0 20px; font-weight: 600; color: #2c3e50;"></span>
+                <button onclick="nextSchedule()" class="secondary" style="padding: 8px 16px;">다음 ▶</button>
+            </div>
+
+            <div class="alert alert-info" style="font-size: 13px;">
+                💡 <strong>팁:</strong> 당직표 생성 후 각 주차를 클릭하면 당직자를 수동으로 변경할 수 있습니다.
+            </div>
+
+            <div id="messages"></div>
+            <div id="scheduleGrid"></div>
+            <div id="statistics"></div>
+        </div>
+    </div>
+
+    <script>
+        // 전역 데이터
+        let people = [];
+        let schedule = null;
+        let schedules = []; // 여러 스케줄 저장
+        let currentScheduleIndex = 0; // 현재 표시 중인 스케줄 인덱스
+        let mixedTeamWeeks = new Set(); // 혼합팀 주차
+        let editingWeekIndex = null;
+        let editingPersonIndex = null; // 현재 편집 중인 인원 인덱스
+        let peopleModifiedAfterSchedule = false;
+
+        // Person 클래스
+        class Person {
+            constructor(name, team, preferredWeeks = [], vacationWeeks = []) {
+                this.name = name;
+                this.team = team; // 'A' or 'B'
+                this.preferredWeeks = preferredWeeks;
+                this.vacationWeeks = vacationWeeks;
+                this.dutyCount = 0;
+            }
+
+            isOnVacation(weekNumber) {
+                return this.vacationWeeks.includes(weekNumber);
+            }
+
+            hasPreferredWeek(weekNumber) {
+                return this.preferredWeeks.includes(weekNumber);
+            }
+
+            canTakeMoreDuties(maxDuty) {
+                return this.dutyCount < maxDuty;
+            }
+        }
+
+        // 섹션 토글
+        function toggleSection(sectionId) {
+            const section = document.getElementById(sectionId);
+            const toggle = document.getElementById(sectionId.replace('Section', 'Toggle'));
+            if (section.style.display === 'none') {
+                section.style.display = 'block';
+                if (toggle) toggle.textContent = '▲';
+            } else {
+                section.style.display = 'none';
+                if (toggle) toggle.textContent = '▼';
+            }
+        }
+
+        // 인원 추가
+        function addPerson() {
+            const name = document.getElementById('personName').value.trim();
+            const team = document.getElementById('personTeam').value;
+            const preferredWeeksStr = document.getElementById('preferredWeeks').value.trim();
+            const vacationWeeksStr = document.getElementById('vacationWeeks').value.trim();
+
+            if (!name) {
+                showMessage('이름을 입력해주세요.', 'error');
+                return;
+            }
+
+            if (people.some(p => p.name === name)) {
+                showMessage('이미 존재하는 이름입니다.', 'error');
+                return;
+            }
+
+            const preferredWeeks = preferredWeeksStr ? preferredWeeksStr.split(',').map(w => parseInt(w.trim())).filter(w => !isNaN(w)) : [];
+            const vacationWeeks = vacationWeeksStr ? vacationWeeksStr.split(',').map(w => parseInt(w.trim())).filter(w => !isNaN(w)) : [];
+
+            people.push(new Person(name, team, preferredWeeks, vacationWeeks));
+
+            // 입력 필드 초기화
+            document.getElementById('personName').value = '';
+            document.getElementById('preferredWeeks').value = '';
+            document.getElementById('vacationWeeks').value = '';
+
+            renderPersonList();
+            markPeopleModified();
+            showMessage(`${name}님이 ${team}팀에 추가되었습니다.`, 'success');
+        }
+
+        // 인원 삭제
+        function removePerson(index) {
+            const name = people[index].name;
+            if (confirm(`${name}님을 삭제하시겠습니까?`)) {
+                people.splice(index, 1);
+                renderPersonList();
+                markPeopleModified();
+                showMessage(`${name}님이 삭제되었습니다.`, 'success');
+            }
+        }
+
+        // 예시 데이터 로드
+        function loadSampleData() {
+            people = [
+                new Person('김철수', 'A', [1, 5], []),
+                new Person('이영희', 'A', [], [3]),
+                new Person('박민수', 'A', [2], []),
+                new Person('정수진', 'A', [], [7, 8]),
+                new Person('홍길동', 'A', [4], []),
+                new Person('최민정', 'B', [], [2]),
+                new Person('강동원', 'B', [3, 6], []),
+                new Person('윤서연', 'B', [], [5]),
+                new Person('장민호', 'B', [1], []),
+                new Person('한소희', 'B', [], [])
+            ];
+
+            // 혼합팀 주차 예시 설정
+            mixedTeamWeeks = new Set([4, 8, 12]);
+
+            renderPersonList();
+            updateMixedWeekSettings();
+            markPeopleModified();
+            showMessage('예시 데이터가 로드되었습니다.', 'success');
+        }
+
+        // JSON 다운로드
+        function downloadJSON() {
+            const data = {
+                people: people.map(p => ({
+                    name: p.name,
+                    team: p.team,
+                    preferredWeeks: p.preferredWeeks,
+                    vacationWeeks: p.vacationWeeks,
+                    dutyCount: p.dutyCount
+                })),
+                mixedTeamWeeks: Array.from(mixedTeamWeeks)
+            };
+
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = '주별당직_인원정보_' + new Date().toISOString().slice(0, 10) + '.json';
+            a.click();
+            URL.revokeObjectURL(url);
+            showMessage('인원 정보가 저장되었습니다.', 'success');
+        }
+
+        // JSON 업로드
+        function uploadJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    people = data.people.map(p => {
+                        const person = new Person(p.name, p.team, p.preferredWeeks || [], p.vacationWeeks || []);
+                        person.dutyCount = p.dutyCount || 0;
+                        return person;
+                    });
+                    mixedTeamWeeks = new Set(data.mixedTeamWeeks || []);
+
+                    renderPersonList();
+                    updateMixedWeekSettings();
+                    markPeopleModified();
+                    showMessage(`인원 정보를 불러왔습니다. (${people.length}명)`, 'success');
+                } catch (error) {
+                    showMessage('파일 읽기 실패: ' + error.message, 'error');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        // 전체 초기화
+        function clearAllData() {
+            if (confirm('모든 데이터를 초기화하시겠습니까?')) {
+                people = [];
+                schedule = null;
+                mixedTeamWeeks = new Set();
+                renderPersonList();
+                renderScheduleGrid();
+                renderStatistics();
+                updateMixedWeekSettings();
+                markPeopleModified();
+                showMessage('모든 데이터가 초기화되었습니다.', 'info');
+            }
+        }
+
+        // 인원 목록 렌더링
+        function renderPersonList() {
+            const listDiv = document.getElementById('personList');
+            if (people.length === 0) {
+                listDiv.innerHTML = '<p class="small-text">등록된 인원이 없습니다. 위에서 인원을 추가하거나 예시 데이터를 불러오세요.</p>';
+                return;
+            }
+
+            // 팀별로 정렬
+            const sortedPeople = [...people].sort((a, b) => {
+                if (a.team !== b.team) return a.team.localeCompare(b.team);
+                return a.name.localeCompare(b.name);
+            });
+
+            let html = `<div style="grid-column: 1 / -1; margin-bottom: 10px;">
+                <strong>등록된 인원: ${people.length}명</strong>
+                (A팀: ${people.filter(p => p.team === 'A').length}명, B팀: ${people.filter(p => p.team === 'B').length}명)
+            </div>`;
+
+            sortedPeople.forEach((person, sortedIndex) => {
+                const originalIndex = people.indexOf(person);
+                const teamClass = person.team === 'A' ? 'team-a' : 'team-b';
+                const isEditing = editingPersonIndex === originalIndex;
+                const editModeClass = isEditing ? 'edit-mode' : '';
+
+                if (isEditing) {
+                    // 편집 모드 - 개선된 폼
+                    html += `
+                        <div class="person-entry ${teamClass} ${editModeClass}" id="person_${originalIndex}">
+                            <div class="edit-form-header">✏️ ${person.name} 정보 수정</div>
+
+                            <div class="edit-form-row">
+                                <div class="edit-form-field">
+                                    <label>이름</label>
+                                    <input type="text" id="editName_${originalIndex}" value="${person.name}" onkeydown="handleEditKeydown(event, ${originalIndex})">
+                                </div>
+                                <div class="edit-form-field">
+                                    <label>팀</label>
+                                    <select id="editTeam_${originalIndex}">
+                                        <option value="A" ${person.team === 'A' ? 'selected' : ''}>A팀</option>
+                                        <option value="B" ${person.team === 'B' ? 'selected' : ''}>B팀</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="edit-form-field">
+                                <label>🌟 선호 주차 (쉼표로 구분, 예: 1, 5, 9)</label>
+                                <input type="text" id="editPreferred_${originalIndex}" value="${person.preferredWeeks.join(', ')}" placeholder="선호하는 주차 입력" onkeydown="handleEditKeydown(event, ${originalIndex})">
+                            </div>
+
+                            <div class="edit-form-field">
+                                <label>🏖️ 휴가 주차 (쉼표로 구분, 예: 3, 7)</label>
+                                <input type="text" id="editVacation_${originalIndex}" value="${person.vacationWeeks.join(', ')}" placeholder="휴가 주차 입력" onkeydown="handleEditKeydown(event, ${originalIndex})">
+                            </div>
+
+                            <div class="edit-form-buttons">
+                                <button onclick="savePersonEdit(${originalIndex})" style="background: #27ae60;">✓ 저장</button>
+                                <button onclick="cancelPersonEdit()" class="secondary">✕ 취소</button>
+                                <button onclick="confirmRemovePerson(${originalIndex})" class="danger">🗑️ 삭제</button>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // 표시 모드 - 카드 클릭시 편집
+                    let tagsHtml = '';
+                    if (person.preferredWeeks.length > 0) {
+                        tagsHtml += `<span class="tag preferred">🌟 선호: ${person.preferredWeeks.join(', ')}주</span>`;
+                    }
+                    if (person.vacationWeeks.length > 0) {
+                        tagsHtml += `<span class="tag vacation">🏖️ 휴가: ${person.vacationWeeks.join(', ')}주</span>`;
+                    }
+
+                    html += `
+                        <div class="person-entry ${teamClass}" id="person_${originalIndex}" onclick="togglePersonEditMode(${originalIndex})" title="클릭하여 수정">
+                            <h3>
+                                ${person.name}
+                                <span class="team-badge ${teamClass}">${person.team}팀</span>
+                            </h3>
+                            <div class="person-compact-info">
+                                ${tagsHtml || '<span class="small-text">제약 없음 - 클릭하여 추가</span>'}
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+
+            listDiv.innerHTML = html;
+        }
+
+        // 인원 편집 모드 토글
+        function togglePersonEditMode(index) {
+            if (editingPersonIndex !== null && editingPersonIndex !== index) {
+                // 다른 편집 중이면 먼저 취소
+                editingPersonIndex = null;
+            }
+            editingPersonIndex = index;
+            renderPersonList();
+
+            // 첫 번째 입력 필드에 포커스
+            setTimeout(() => {
+                const nameInput = document.getElementById(`editName_${index}`);
+                if (nameInput) nameInput.focus();
+            }, 100);
+        }
+
+        // 인원 편집 취소
+        function cancelPersonEdit() {
+            editingPersonIndex = null;
+            renderPersonList();
+        }
+
+        // 키보드 이벤트 핸들러 (Enter: 저장, Escape: 취소)
+        function handleEditKeydown(event, index) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                savePersonEdit(index);
+            } else if (event.key === 'Escape') {
+                event.preventDefault();
+                cancelPersonEdit();
+            }
+        }
+
+        // 삭제 확인
+        function confirmRemovePerson(index) {
+            event.stopPropagation(); // 카드 클릭 이벤트 방지
+            const name = people[index].name;
+            if (confirm(`${name}님을 삭제하시겠습니까?`)) {
+                people.splice(index, 1);
+                editingPersonIndex = null;
+                renderPersonList();
+                markPeopleModified();
+                showMessage(`${name}님이 삭제되었습니다.`, 'success');
+            }
+        }
+
+        // 인원 편집 저장
+        function savePersonEdit(index) {
+            const person = people[index];
+
+            const newName = document.getElementById(`editName_${index}`).value.trim();
+            const newTeam = document.getElementById(`editTeam_${index}`).value;
+            const newPreferredStr = document.getElementById(`editPreferred_${index}`).value.trim();
+            const newVacationStr = document.getElementById(`editVacation_${index}`).value.trim();
+
+            // 유효성 검사
+            if (!newName) {
+                showMessage('이름을 입력해주세요.', 'error');
+                return;
+            }
+
+            // 중복 이름 체크 (자기 자신 제외)
+            if (people.some((p, i) => i !== index && p.name === newName)) {
+                showMessage('이미 존재하는 이름입니다.', 'error');
+                return;
+            }
+
+            // 데이터 업데이트
+            person.name = newName;
+            person.team = newTeam;
+            person.preferredWeeks = newPreferredStr ? newPreferredStr.split(',').map(w => parseInt(w.trim())).filter(w => !isNaN(w)) : [];
+            person.vacationWeeks = newVacationStr ? newVacationStr.split(',').map(w => parseInt(w.trim())).filter(w => !isNaN(w)) : [];
+
+            editingPersonIndex = null;
+            renderPersonList();
+            markPeopleModified();
+            showMessage(`${person.name}님의 정보가 수정되었습니다.`, 'success');
+        }
+
+        // 혼합팀 주차 설정 업데이트
+        function updateMixedWeekSettings() {
+            const totalWeeks = parseInt(document.getElementById('totalWeeks').value) || 12;
+            const container = document.getElementById('mixedWeekSettings');
+
+            let html = '';
+            for (let week = 1; week <= totalWeeks; week++) {
+                const checked = mixedTeamWeeks.has(week) ? 'checked' : '';
+                html += `
+                    <div class="week-setting-row">
+                        <input type="checkbox" id="mixedWeek_${week}" ${checked} onchange="toggleMixedWeek(${week})">
+                        <label for="mixedWeek_${week}" style="margin: 0; font-weight: normal;">${week}주차</label>
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+        }
+
+        // 혼합팀 주차 토글
+        function toggleMixedWeek(week) {
+            if (mixedTeamWeeks.has(week)) {
+                mixedTeamWeeks.delete(week);
+            } else {
+                mixedTeamWeeks.add(week);
+            }
+        }
+
+        // 인원 변경 표시
+        function markPeopleModified() {
+            if (schedule) {
+                peopleModifiedAfterSchedule = true;
+                updateScheduleWarning();
+            }
+        }
+
+        function updateScheduleWarning() {
+            const warningEl = document.getElementById('scheduleWarning');
+            if (warningEl) {
+                warningEl.style.display = peopleModifiedAfterSchedule ? 'block' : 'none';
+            }
+        }
+
+        // 스케줄 생성
+        function generateSchedule() {
+            if (people.length === 0) {
+                showMessage('인원을 먼저 추가해주세요.', 'error');
+                return;
+            }
+
+            const totalWeeks = parseInt(document.getElementById('totalWeeks').value) || 12;
+            const peoplePerWeek = parseInt(document.getElementById('peoplePerWeek').value) || 2;
+            const minGap = parseInt(document.getElementById('minGap').value) || 4;
+            const maxDutyPerPerson = parseInt(document.getElementById('maxDutyPerPerson').value) || 2;
+
+            // 인원 수 확인
+            if (people.length < peoplePerWeek) {
+                showMessage(`인원이 부족합니다. 주당 ${peoplePerWeek}명이 필요한데 ${people.length}명만 등록되어 있습니다.`, 'error');
+                return;
+            }
+
+            // 카운트 초기화
+            people.forEach(p => p.dutyCount = 0);
+
+            schedule = [];
+            let success = true;
+            let attempts = 0;
+            const maxAttempts = 100;
+            let failureReason = '';
+
+            while (attempts < maxAttempts) {
+                attempts++;
+                schedule = [];
+                people.forEach(p => p.dutyCount = 0);
+                success = true;
+                failureReason = '';
+
+                for (let week = 1; week <= totalWeeks; week++) {
+                    const isMixedWeek = mixedTeamWeeks.has(week);
+                    const assigned = [];
+
+                    if (isMixedWeek && peoplePerWeek >= 2) {
+                        // 혼합팀: A팀 1명 + B팀 1명 + 나머지
+                        const teamAMember = selectPerson(week, 'A', assigned, minGap, maxDutyPerPerson);
+                        if (!teamAMember) {
+                            success = false;
+                            failureReason = `${week}주차: A팀에서 배정 가능한 인원이 없습니다.`;
+                            break;
+                        }
+                        assigned.push(teamAMember);
+                        teamAMember.dutyCount++;
+
+                        const teamBMember = selectPerson(week, 'B', assigned, minGap, maxDutyPerPerson);
+                        if (!teamBMember) {
+                            success = false;
+                            failureReason = `${week}주차: B팀에서 배정 가능한 인원이 없습니다.`;
+                            break;
+                        }
+                        assigned.push(teamBMember);
+                        teamBMember.dutyCount++;
+
+                        // 나머지 인원 (필요시)
+                        for (let i = 2; i < peoplePerWeek; i++) {
+                            const member = selectPerson(week, null, assigned, minGap, maxDutyPerPerson);
+                            if (!member) {
+                                success = false;
+                                failureReason = `${week}주차: 추가 인원을 배정할 수 없습니다.`;
+                                break;
+                            }
+                            assigned.push(member);
+                            member.dutyCount++;
+                        }
+                    } else {
+                        // 일반: 팀 상관없이 배정
+                        for (let i = 0; i < peoplePerWeek; i++) {
+                            const member = selectPerson(week, null, assigned, minGap, maxDutyPerPerson);
+                            if (!member) {
+                                success = false;
+                                failureReason = `${week}주차: ${i + 1}번째 인원을 배정할 수 없습니다.`;
+                                break;
+                            }
+                            assigned.push(member);
+                            member.dutyCount++;
+                        }
+                    }
+
+                    if (!success) break;
+
+                    schedule.push({
+                        week: week,
+                        assigned: assigned.map(p => p.name),
+                        isMixed: isMixedWeek
+                    });
+                }
+
+                if (success) break;
+            }
+
+            if (!success) {
+                let errorMsg = '당직표 생성에 실패했습니다.\n\n';
+                if (failureReason) {
+                    errorMsg += `❌ ${failureReason}\n\n`;
+                }
+                errorMsg += `💡 해결 방법:\n`;
+                errorMsg += `- 1인당 최대 횟수를 늘려주세요\n`;
+                errorMsg += `- 최소 간격을 줄여주세요\n`;
+                errorMsg += `- 인원을 추가해주세요\n`;
+                errorMsg += `- 휴가 주차를 조정해주세요\n\n`;
+                errorMsg += `(${attempts}번 시도)`;
+
+                alert(errorMsg);
+                showMessage('당직표 생성 실패', 'error');
+                return;
+            }
+
+            peopleModifiedAfterSchedule = false;
+            updateScheduleWarning();
+
+            // 단일 스케줄 생성시 네비게이션 숨기기
+            schedules = [schedule];
+            currentScheduleIndex = 0;
+            updateScheduleNavigation();
+
+            showMessage(`당직표가 성공적으로 생성되었습니다! (${attempts}번 시도)`, 'success');
+            renderScheduleGrid();
+            renderStatistics();
+        }
+
+        // 여러 스케줄 생성 (5개)
+        function generateMultipleSchedules() {
+            if (people.length === 0) {
+                showMessage('인원을 먼저 추가해주세요.', 'error');
+                return;
+            }
+
+            const totalWeeks = parseInt(document.getElementById('totalWeeks').value) || 12;
+            const peoplePerWeek = parseInt(document.getElementById('peoplePerWeek').value) || 2;
+            const minGap = parseInt(document.getElementById('minGap').value) || 4;
+            const maxDutyPerPerson = parseInt(document.getElementById('maxDutyPerPerson').value) || 2;
+
+            if (people.length < peoplePerWeek) {
+                showMessage(`인원이 부족합니다. 주당 ${peoplePerWeek}명이 필요한데 ${people.length}명만 등록되어 있습니다.`, 'error');
+                return;
+            }
+
+            schedules = [];
+            let attempts = 0;
+            const maxTotalAttempts = 500;
+
+            while (schedules.length < 5 && attempts < maxTotalAttempts) {
+                attempts++;
+
+                // 카운트 초기화
+                people.forEach(p => p.dutyCount = 0);
+
+                let tempSchedule = [];
+                let success = true;
+
+                for (let week = 1; week <= totalWeeks; week++) {
+                    const isMixedWeek = mixedTeamWeeks.has(week);
+                    const assigned = [];
+
+                    if (isMixedWeek && peoplePerWeek >= 2) {
+                        const teamAMember = selectPerson(week, 'A', assigned, minGap, maxDutyPerPerson, tempSchedule);
+                        if (!teamAMember) { success = false; break; }
+                        assigned.push(teamAMember);
+                        teamAMember.dutyCount++;
+
+                        const teamBMember = selectPerson(week, 'B', assigned, minGap, maxDutyPerPerson, tempSchedule);
+                        if (!teamBMember) { success = false; break; }
+                        assigned.push(teamBMember);
+                        teamBMember.dutyCount++;
+
+                        for (let i = 2; i < peoplePerWeek; i++) {
+                            const member = selectPerson(week, null, assigned, minGap, maxDutyPerPerson, tempSchedule);
+                            if (!member) { success = false; break; }
+                            assigned.push(member);
+                            member.dutyCount++;
+                        }
+                    } else {
+                        for (let i = 0; i < peoplePerWeek; i++) {
+                            const member = selectPerson(week, null, assigned, minGap, maxDutyPerPerson, tempSchedule);
+                            if (!member) { success = false; break; }
+                            assigned.push(member);
+                            member.dutyCount++;
+                        }
+                    }
+
+                    if (!success) break;
+
+                    tempSchedule.push({
+                        week: week,
+                        assigned: assigned.map(p => p.name),
+                        isMixed: isMixedWeek
+                    });
+                }
+
+                if (success && !isDuplicateSchedule(tempSchedule)) {
+                    schedules.push(tempSchedule);
+                }
+            }
+
+            if (schedules.length === 0) {
+                let errorMsg = '당직표 생성에 실패했습니다.\n\n';
+                errorMsg += `💡 해결 방법:\n`;
+                errorMsg += `- 1인당 최대 횟수를 늘려주세요\n`;
+                errorMsg += `- 최소 간격을 줄여주세요\n`;
+                errorMsg += `- 인원을 추가해주세요\n`;
+                errorMsg += `- 휴가 주차를 조정해주세요\n\n`;
+                errorMsg += `(${attempts}번 시도)`;
+                alert(errorMsg);
+                showMessage('당직표 생성 실패', 'error');
+                return;
+            }
+
+            currentScheduleIndex = 0;
+            schedule = schedules[0];
+            recalculateCounts();
+
+            peopleModifiedAfterSchedule = false;
+            updateScheduleWarning();
+            updateScheduleNavigation();
+
+            showMessage(`${schedules.length}개의 당직표가 생성되었습니다! (${attempts}번 시도)`, 'success');
+            renderScheduleGrid();
+            renderStatistics();
+        }
+
+        // 중복 스케줄 체크
+        function isDuplicateSchedule(newSchedule) {
+            for (const existingSchedule of schedules) {
+                if (existingSchedule.length !== newSchedule.length) continue;
+
+                let isDuplicate = true;
+                for (let i = 0; i < newSchedule.length; i++) {
+                    const newWeek = newSchedule[i];
+                    const existingWeek = existingSchedule[i];
+
+                    const newAssigned = [...newWeek.assigned].sort().join(',');
+                    const existingAssigned = [...existingWeek.assigned].sort().join(',');
+
+                    if (newAssigned !== existingAssigned) {
+                        isDuplicate = false;
+                        break;
+                    }
+                }
+
+                if (isDuplicate) return true;
+            }
+            return false;
+        }
+
+        // 스케줄 네비게이션
+        function updateScheduleNavigation() {
+            const navDiv = document.getElementById('scheduleNavigation');
+            const indicator = document.getElementById('scheduleIndicator');
+
+            if (schedules.length <= 1) {
+                navDiv.style.display = 'none';
+            } else {
+                navDiv.style.display = 'block';
+                indicator.textContent = `${currentScheduleIndex + 1} / ${schedules.length}`;
+            }
+        }
+
+        function prevSchedule() {
+            if (currentScheduleIndex > 0) {
+                currentScheduleIndex--;
+                schedule = schedules[currentScheduleIndex];
+                recalculateCounts();
+                updateScheduleNavigation();
+                renderScheduleGrid();
+                renderStatistics();
+            }
+        }
+
+        function nextSchedule() {
+            if (currentScheduleIndex < schedules.length - 1) {
+                currentScheduleIndex++;
+                schedule = schedules[currentScheduleIndex];
+                recalculateCounts();
+                updateScheduleNavigation();
+                renderScheduleGrid();
+                renderStatistics();
+            }
+        }
+
+        // 인원 선택
+        function selectPerson(week, requiredTeam, alreadyAssigned, minGap, maxDutyPerPerson, tempSchedule = null) {
+            const scheduleToCheck = tempSchedule || schedule;
+            // 선호하는 사람 먼저
+            let candidates = people.filter(p => {
+                if (alreadyAssigned.includes(p)) return false;
+                if (requiredTeam && p.team !== requiredTeam) return false;
+                if (p.isOnVacation(week)) return false;
+                if (!p.canTakeMoreDuties(maxDutyPerPerson)) return false;
+                if (!checkMinGap(p.name, week, minGap, scheduleToCheck)) return false;
+                return true;
+            });
+
+            if (candidates.length === 0) return null;
+
+            // 선호 주차 먼저
+            const preferred = candidates.filter(p => p.hasPreferredWeek(week));
+            if (preferred.length > 0) {
+                // 선호자 중 당직 횟수가 가장 적은 사람
+                preferred.sort((a, b) => a.dutyCount - b.dutyCount);
+                // 동일한 횟수인 경우 랜덤
+                const minDuty = preferred[0].dutyCount;
+                const best = preferred.filter(p => p.dutyCount === minDuty);
+                return best[Math.floor(Math.random() * best.length)];
+            }
+
+            // 일반 후보 중 당직 횟수가 가장 적은 사람
+            candidates.sort((a, b) => a.dutyCount - b.dutyCount);
+            const minDuty = candidates[0].dutyCount;
+            const best = candidates.filter(p => p.dutyCount === minDuty);
+            return best[Math.floor(Math.random() * best.length)];
+        }
+
+        // 최소 간격 체크
+        function checkMinGap(personName, week, minGap, scheduleToCheck = null) {
+            const targetSchedule = scheduleToCheck || schedule;
+            if (!targetSchedule || targetSchedule.length === 0) return true;
+
+            for (let i = targetSchedule.length - 1; i >= 0; i--) {
+                const entry = targetSchedule[i];
+                if (entry.assigned.includes(personName)) {
+                    const gap = week - entry.week;
+                    if (gap < minGap) return false;
+                    break;
+                }
+            }
+            return true;
+        }
+
+        // 스케줄 그리드 렌더링
+        function renderScheduleGrid() {
+            const gridDiv = document.getElementById('scheduleGrid');
+            if (!schedule || schedule.length === 0) {
+                gridDiv.innerHTML = '';
+                return;
+            }
+
+            let html = '<div class="schedule-grid">';
+            schedule.forEach((entry, index) => {
+                const mixedClass = entry.isMixed ? 'mixed-team' : '';
+                const editedClass = entry.manuallyEdited ? 'manually-edited' : '';
+                const editModeClass = editingWeekIndex === index ? 'edit-mode' : '';
+
+                let assignmentsHtml = '';
+                if (editingWeekIndex === index) {
+                    // 편집 모드
+                    assignmentsHtml = '<div class="edit-controls">';
+                    entry.assigned.forEach((name, i) => {
+                        const person = people.find(p => p.name === name);
+                        assignmentsHtml += `
+                            <div style="margin-bottom: 8px;">
+                                <label style="font-size: 11px; margin: 0;">당직 ${i + 1}</label>
+                                <select id="editAssign_${index}_${i}">
+                                    ${people.map(p => `<option value="${p.name}" ${p.name === name ? 'selected' : ''}>${p.name} (${p.team}팀)</option>`).join('')}
+                                </select>
+                            </div>
+                        `;
+                    });
+                    assignmentsHtml += `
+                        <div style="margin-top: 10px;">
+                            <button onclick="saveWeekEdit(${index})" style="background: #27ae60; padding: 6px 12px; font-size: 12px;">저장</button>
+                            <button onclick="cancelWeekEdit()" class="secondary" style="padding: 6px 12px; font-size: 12px;">취소</button>
+                        </div>
+                    </div>`;
+                } else {
+                    // 표시 모드
+                    entry.assigned.forEach(name => {
+                        const person = people.find(p => p.name === name);
+                        const teamClass = person ? (person.team === 'A' ? 'team-a' : 'team-b') : '';
+                        assignmentsHtml += `
+                            <div class="assignment-person">
+                                <span class="team-indicator ${teamClass}"></span>
+                                ${name}
+                            </div>
+                        `;
+                    });
+                }
+
+                const editedBadge = entry.manuallyEdited ? '<span class="manual-edit-badge">수정됨</span>' : '';
+                const mixedBadge = entry.isMixed ? '<span class="mixed-badge">혼합팀</span>' : '';
+
+                html += `
+                    <div class="week-card ${mixedClass} ${editedClass} ${editModeClass}"
+                         onclick="${editingWeekIndex === index ? '' : `editWeek(${index})`}">
+                        <div class="week-header">
+                            <span class="week-number">${entry.week}주차</span>
+                            <span>${mixedBadge} ${editedBadge}</span>
+                        </div>
+                        <div class="week-assignments">
+                            ${assignmentsHtml}
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            gridDiv.innerHTML = html;
+        }
+
+        // 주차 편집
+        function editWeek(index) {
+            if (editingWeekIndex !== null) {
+                cancelWeekEdit();
+            }
+            editingWeekIndex = index;
+            renderScheduleGrid();
+        }
+
+        // 편집 취소
+        function cancelWeekEdit() {
+            editingWeekIndex = null;
+            renderScheduleGrid();
+        }
+
+        // 편집 저장
+        function saveWeekEdit(index) {
+            const entry = schedule[index];
+            const newAssigned = [];
+
+            for (let i = 0; i < entry.assigned.length; i++) {
+                const select = document.getElementById(`editAssign_${index}_${i}`);
+                if (select) newAssigned.push(select.value);
+            }
+
+            // 중복 체크
+            const unique = new Set(newAssigned);
+            if (unique.size !== newAssigned.length) {
+                showMessage('❌ 같은 사람이 여러 번 선택되었습니다.', 'error');
+                return;
+            }
+
+            // 혼합팀 검증
+            if (entry.isMixed && newAssigned.length >= 2) {
+                const teams = newAssigned.slice(0, 2).map(name => {
+                    const person = people.find(p => p.name === name);
+                    return person ? person.team : null;
+                });
+                if (teams[0] === teams[1]) {
+                    if (!confirm('⚠️ 혼합팀 주차인데 같은 팀에서 선택되었습니다. 계속하시겠습니까?')) {
+                        return;
+                    }
+                }
+            }
+
+            entry.assigned = newAssigned;
+            entry.manuallyEdited = true;
+            editingWeekIndex = null;
+
+            recalculateCounts();
+            renderScheduleGrid();
+            renderStatistics();
+            showMessage(`${entry.week}주차 당직이 변경되었습니다.`, 'success');
+        }
+
+        // 카운트 재계산
+        function recalculateCounts() {
+            people.forEach(p => p.dutyCount = 0);
+            if (schedule) {
+                schedule.forEach(entry => {
+                    entry.assigned.forEach(name => {
+                        const person = people.find(p => p.name === name);
+                        if (person) person.dutyCount++;
+                    });
+                });
+            }
+        }
+
+        // 통계 렌더링
+        function renderStatistics() {
+            const statsDiv = document.getElementById('statistics');
+            if (!schedule || schedule.length === 0) {
+                statsDiv.innerHTML = '';
+                return;
+            }
+
+            let html = '<div class="stats"><h3>📊 통계</h3><div class="stats-grid">';
+
+            const maxDuty = parseInt(document.getElementById('maxDutyPerPerson').value) || 2;
+
+            // 팀별로 정렬
+            const sortedPeople = [...people].sort((a, b) => {
+                if (a.team !== b.team) return a.team.localeCompare(b.team);
+                return a.name.localeCompare(b.name);
+            });
+
+            sortedPeople.forEach(person => {
+                const isOverMax = person.dutyCount > maxDuty;
+                const warningStyle = isOverMax ? 'border: 2px solid #e74c3c; background: #ffe6e6;' : '';
+                const warningIcon = isOverMax ? ' ⚠️' : '';
+                const teamColor = person.team === 'A' ? '#e74c3c' : '#2ecc71';
+
+                html += `
+                    <div class="stat-item" style="${warningStyle}">
+                        <strong style="color: ${teamColor};">${person.name}</strong>
+                        <span class="small-text">${person.team}팀</span><br>
+                        <span>당직: ${person.dutyCount}회${warningIcon}</span>
+                    </div>
+                `;
+            });
+
+            html += '</div></div>';
+            statsDiv.innerHTML = html;
+        }
+
+        // 내보내기
+        function exportSchedule() {
+            if (!schedule || schedule.length === 0) {
+                showMessage('먼저 당직표를 생성해주세요.', 'error');
+                return;
+            }
+
+            let text = '주별 당직표\n\n';
+
+            schedule.forEach(entry => {
+                const mixedText = entry.isMixed ? ' [혼합팀]' : '';
+                const editedText = entry.manuallyEdited ? ' [수동편집]' : '';
+                const assignedText = entry.assigned.map(name => {
+                    const person = people.find(p => p.name === name);
+                    return `${name}(${person ? person.team : '?'}팀)`;
+                }).join(', ');
+
+                text += `${entry.week}주차${mixedText}${editedText}: ${assignedText}\n`;
+            });
+
+            text += '\n통계:\n';
+            people.forEach(person => {
+                let extra = '';
+                if (person.preferredWeeks.length > 0) {
+                    extra += ` (선호: ${person.preferredWeeks.join(',')}주)`;
+                }
+                if (person.vacationWeeks.length > 0) {
+                    extra += ` (휴가: ${person.vacationWeeks.join(',')}주)`;
+                }
+                text += `${person.name} (${person.team}팀): ${person.dutyCount}회${extra}\n`;
+            });
+
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = '주별당직표_' + new Date().toISOString().slice(0, 10) + '.txt';
+            a.click();
+            URL.revokeObjectURL(url);
+
+            showMessage('당직표가 다운로드되었습니다.', 'success');
+        }
+
+        // 메시지 표시
+        function showMessage(msg, type = 'info') {
+            const messagesDiv = document.getElementById('messages');
+            const alertClass = type === 'error' ? 'alert-error' :
+                              type === 'success' ? 'alert-success' : 'alert-info';
+            messagesDiv.innerHTML = `<div class="alert ${alertClass}">${msg}</div>`;
+            setTimeout(() => {
+                messagesDiv.innerHTML = '';
+            }, 5000);
+        }
+
+        // 초기화
+        renderPersonList();
+        updateMixedWeekSettings();
+
+        // 총 주 수 변경시 혼합팀 설정 업데이트
+        document.getElementById('totalWeeks').addEventListener('change', updateMixedWeekSettings);
+    </script>
+</body>
+</html>

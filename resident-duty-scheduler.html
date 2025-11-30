@@ -1,0 +1,1576 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>전공의 당직표 생성기 (12시간 단위)</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f6fa;
+        }
+
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h2 {
+            color: #34495e;
+            margin-top: 20px;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+            font-size: 18px;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 20px;
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .input-section {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .result-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        /* 인원 목록 */
+        #personList {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .person-entry {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            border-left: 4px solid #3498db;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .person-entry:hover {
+            background: #e8f4fc;
+        }
+
+        .person-entry.edit-mode {
+            border: 2px solid #3498db;
+            cursor: default;
+        }
+
+        .person-entry h4 {
+            margin: 0 0 5px 0;
+            font-size: 14px;
+            color: #2c3e50;
+        }
+
+        .person-entry .info {
+            font-size: 11px;
+            color: #666;
+        }
+
+        .edit-form-field {
+            margin-bottom: 10px;
+        }
+
+        .edit-form-field label {
+            display: block;
+            font-size: 11px;
+            font-weight: 600;
+            margin-bottom: 3px;
+            color: #555;
+        }
+
+        .edit-form-field input {
+            width: 100%;
+            padding: 6px;
+            font-size: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .edit-buttons {
+            display: flex;
+            gap: 5px;
+            margin-top: 10px;
+        }
+
+        .edit-buttons button {
+            flex: 1;
+            padding: 6px;
+            font-size: 11px;
+        }
+
+        label {
+            display: block;
+            margin: 8px 0 4px 0;
+            font-weight: 500;
+            color: #555;
+            font-size: 13px;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        input[type="month"],
+        select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: background 0.3s;
+            margin: 3px;
+        }
+
+        button:hover {
+            background: #2980b9;
+        }
+
+        button.secondary {
+            background: #95a5a6;
+        }
+
+        button.secondary:hover {
+            background: #7f8c8d;
+        }
+
+        button.danger {
+            background: #e74c3c;
+        }
+
+        button.danger:hover {
+            background: #c0392b;
+        }
+
+        button.success {
+            background: #27ae60;
+        }
+
+        button.success:hover {
+            background: #219a52;
+        }
+
+        .button-group {
+            text-align: center;
+            margin: 15px 0;
+        }
+
+        /* 캘린더 그리드 */
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 2px;
+            background: #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .calendar-day-header {
+            background: #34495e;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .calendar-day-header.sunday {
+            background: #c0392b;
+        }
+
+        .calendar-day-header.saturday {
+            background: #2980b9;
+        }
+
+        .calendar-day {
+            background: white;
+            min-height: 100px;
+            padding: 5px;
+            position: relative;
+        }
+
+        .calendar-day.empty {
+            background: #f5f5f5;
+        }
+
+        .calendar-day.sunday {
+            background: #fff5f5;
+        }
+
+        .calendar-day.saturday {
+            background: #f5f8ff;
+        }
+
+        .day-number {
+            font-weight: 600;
+            font-size: 14px;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .shift-slot {
+            padding: 4px 6px;
+            margin: 2px 0;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .shift-slot:hover {
+            transform: scale(1.02);
+        }
+
+        .shift-slot.day-shift {
+            background: #fff9e6;
+            border: 1px solid #f1c40f;
+        }
+
+        .shift-slot.night-shift {
+            background: #e8eaf6;
+            border: 1px solid #5c6bc0;
+        }
+
+        .shift-slot.unassigned {
+            background: #ffebee;
+            border: 1px solid #ef5350;
+            color: #c62828;
+        }
+
+        .shift-slot.edit-mode {
+            border: 2px solid #3498db;
+        }
+
+        .shift-slot.manually-edited {
+            border: 2px solid #f39c12;
+        }
+
+        .shift-slot .shift-label {
+            font-weight: 600;
+        }
+
+        .shift-slot .person-name {
+            font-weight: 500;
+        }
+
+        .shift-slot select {
+            width: 100%;
+            padding: 4px;
+            font-size: 11px;
+            margin-top: 3px;
+        }
+
+        /* 통계 */
+        .stats {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+
+        .stats h3 {
+            margin: 0 0 15px 0;
+            color: #2c3e50;
+            font-size: 16px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 10px;
+        }
+
+        .stat-item {
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+            border-left: 3px solid #3498db;
+        }
+
+        .stat-item.warning {
+            border-left-color: #e74c3c;
+            background: #fff5f5;
+        }
+
+        .stat-item strong {
+            display: block;
+            color: #2c3e50;
+            font-size: 13px;
+        }
+
+        .stat-item .hours {
+            font-size: 18px;
+            font-weight: 700;
+            color: #3498db;
+        }
+
+        .stat-item.warning .hours {
+            color: #e74c3c;
+        }
+
+        .stat-item .detail {
+            font-size: 10px;
+            color: #888;
+        }
+
+        .alert {
+            padding: 12px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-size: 13px;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .collapsible-header {
+            background: #ecf0f1;
+            padding: 10px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            font-size: 13px;
+            color: #2c3e50;
+        }
+
+        .collapsible-header:hover {
+            background: #e0e5e7;
+        }
+
+        .collapsible-content {
+            padding: 12px;
+            background: #fafafa;
+            border: 1px solid #ecf0f1;
+            border-top: none;
+            border-radius: 0 0 5px 5px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 2px 6px;
+            background: #e8f4fc;
+            color: #2980b9;
+            border-radius: 3px;
+            font-size: 10px;
+            margin: 1px;
+        }
+
+        .tag.vacation {
+            background: #fef5e7;
+            color: #d35400;
+        }
+
+        .constraint-warning {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 4px;
+            padding: 8px;
+            margin: 10px 0;
+            font-size: 12px;
+        }
+
+        .constraint-warning strong {
+            color: #856404;
+        }
+
+        #scheduleNavigation {
+            text-align: center;
+            margin: 15px 0;
+            padding: 12px;
+            background: #f0f8ff;
+            border-radius: 8px;
+        }
+
+        #scheduleNavigation span {
+            margin: 0 15px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .small-text {
+            font-size: 11px;
+            color: #888;
+        }
+
+        .legend {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 12px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 14px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🏥 전공의 당직표 생성기 (12시간 단위)</h1>
+
+    <div class="container">
+        <!-- 사이드바: 인원 관리 및 설정 -->
+        <div class="sidebar">
+            <!-- 기간 설정 -->
+            <div class="input-section">
+                <h2>📅 기간 설정</h2>
+                <label>대상 월</label>
+                <input type="month" id="targetMonth" onchange="updateCalendar()">
+            </div>
+
+            <!-- 제약 조건 설정 -->
+            <div class="input-section">
+                <h2>⚙️ 제약 조건</h2>
+                <div class="form-row">
+                    <div>
+                        <label>연속 최대 (시간)</label>
+                        <input type="number" id="maxConsecutiveHours" value="36" min="12" max="72" step="12">
+                    </div>
+                    <div>
+                        <label>주간 최대 (시간)</label>
+                        <input type="number" id="maxWeeklyHours" value="72" min="12" max="168" step="12">
+                    </div>
+                </div>
+                <div>
+                    <label>슬롯당 인원 수</label>
+                    <input type="number" id="peoplePerSlot" value="1" min="1" max="5">
+                </div>
+                <p class="small-text" style="margin-top: 10px;">
+                    * 12시간 = 1슬롯, 36시간 = 3슬롯 연속<br>
+                    * 72시간/주 = 주당 최대 6슬롯
+                </p>
+            </div>
+
+            <!-- 인원 관리 -->
+            <div class="input-section">
+                <h2>👥 인원 관리</h2>
+
+                <div class="collapsible-header" onclick="toggleSection('addPersonSection')">
+                    ➕ 새 인원 추가
+                    <span id="addPersonToggle">▼</span>
+                </div>
+                <div id="addPersonSection" class="collapsible-content" style="display: none;">
+                    <div class="edit-form-field">
+                        <label>이름</label>
+                        <input type="text" id="personName" placeholder="이름 입력">
+                    </div>
+                    <div class="edit-form-field">
+                        <label>휴가일 (쉼표 구분, 예: 1,5,15)</label>
+                        <input type="text" id="vacationDays" placeholder="1,5,15">
+                    </div>
+                    <div class="edit-form-field">
+                        <label>선호 근무일 (쉼표 구분)</label>
+                        <input type="text" id="preferredDays" placeholder="10,20">
+                    </div>
+                    <button onclick="addPerson()">인원 추가</button>
+                </div>
+
+                <div style="margin-top: 10px; display: flex; gap: 5px; flex-wrap: wrap;">
+                    <button onclick="loadSampleData()" class="secondary" style="font-size: 11px; padding: 6px 10px;">📋 예시</button>
+                    <button onclick="downloadJSON()" class="secondary" style="font-size: 11px; padding: 6px 10px;">💾 저장</button>
+                    <label style="display: inline-block; margin: 0;">
+                        <input type="file" id="uploadFile" accept=".json" onchange="uploadJSON(event)" style="display: none;">
+                        <button onclick="document.getElementById('uploadFile').click()" class="secondary" style="font-size: 11px; padding: 6px 10px;">📂 불러오기</button>
+                    </label>
+                    <button onclick="clearAllData()" class="danger" style="font-size: 11px; padding: 6px 10px;">🗑️</button>
+                </div>
+
+                <div style="margin-top: 10px;">
+                    <strong style="font-size: 12px;">등록 인원: <span id="personCount">0</span>명</strong>
+                </div>
+                <div id="personList" style="margin-top: 10px;">
+                    <p class="small-text">인원을 추가하거나 예시 데이터를 불러오세요.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 메인: 캘린더 및 결과 -->
+        <div class="result-section">
+            <div class="calendar-header">
+                <h2 style="margin: 0; border: none; padding: 0;">📅 <span id="calendarTitle">2024년 1월</span> 당직표</h2>
+                <div>
+                    <button onclick="prevMonth()" class="secondary" style="padding: 6px 12px;">◀ 이전달</button>
+                    <button onclick="nextMonth()" class="secondary" style="padding: 6px 12px;">다음달 ▶</button>
+                </div>
+            </div>
+
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #fff9e6; border: 1px solid #f1c40f;"></div>
+                    <span>주간 (06-18시)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #e8eaf6; border: 1px solid #5c6bc0;"></div>
+                    <span>야간 (18-06시)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #ffebee; border: 1px solid #ef5350;"></div>
+                    <span>미배정</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="border: 2px solid #f39c12; background: white;"></div>
+                    <span>수동편집</span>
+                </div>
+            </div>
+
+            <div id="scheduleWarning" class="alert alert-error" style="display: none;">
+                ⚠️ <strong>인원 정보가 변경되었습니다.</strong> 변경된 정보를 반영하려면 당직표를 다시 생성해주세요.
+            </div>
+
+            <div class="button-group">
+                <button onclick="generateSchedule()">🎯 당직표 생성</button>
+                <button onclick="generateMultipleSchedules()">🔄 여러 경우 생성 (5개)</button>
+                <button onclick="exportSchedule()" class="secondary">💾 내보내기</button>
+            </div>
+
+            <div id="scheduleNavigation" style="display: none;">
+                <button onclick="prevSchedule()" class="secondary" style="padding: 6px 12px;">◀ 이전</button>
+                <span id="scheduleIndicator">1 / 5</span>
+                <button onclick="nextSchedule()" class="secondary" style="padding: 6px 12px;">다음 ▶</button>
+            </div>
+
+            <div id="constraintWarnings"></div>
+            <div id="messages"></div>
+
+            <div id="calendarGrid" class="calendar-grid"></div>
+
+            <div id="statistics"></div>
+        </div>
+    </div>
+
+    <script>
+        // 전역 데이터
+        let people = [];
+        let schedule = null; // { 'YYYY-MM-DD': { day: [names], night: [names], dayEdited: bool, nightEdited: bool } }
+        let schedules = [];
+        let currentScheduleIndex = 0;
+        let currentYear = new Date().getFullYear();
+        let currentMonth = new Date().getMonth() + 1;
+        let editingPersonIndex = null;
+        let editingSlot = null; // { date: 'YYYY-MM-DD', shift: 'day'|'night' }
+        let peopleModifiedAfterSchedule = false;
+
+        const SHIFT_HOURS = 12;
+        const DAY_NAMES = ['일', '월', '화', '수', '목', '금', '토'];
+
+        // 초기화
+        document.addEventListener('DOMContentLoaded', function() {
+            const today = new Date();
+            currentYear = today.getFullYear();
+            currentMonth = today.getMonth() + 1;
+            document.getElementById('targetMonth').value = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+            updateCalendar();
+        });
+
+        // Person 클래스
+        class Person {
+            constructor(name, vacationDays = [], preferredDays = []) {
+                this.name = name;
+                this.vacationDays = vacationDays; // [1, 5, 15] 등 해당 월의 일자
+                this.preferredDays = preferredDays;
+                this.monthlyHours = 0; // 월간 근무 시간
+            }
+
+            isOnVacation(day) {
+                return this.vacationDays.includes(day);
+            }
+
+            hasPreferredDay(day) {
+                return this.preferredDays.includes(day);
+            }
+        }
+
+        // 섹션 토글
+        function toggleSection(sectionId) {
+            const section = document.getElementById(sectionId);
+            const toggle = document.getElementById(sectionId.replace('Section', 'Toggle'));
+            if (section.style.display === 'none') {
+                section.style.display = 'block';
+                if (toggle) toggle.textContent = '▲';
+            } else {
+                section.style.display = 'none';
+                if (toggle) toggle.textContent = '▼';
+            }
+        }
+
+        // 인원 추가
+        function addPerson() {
+            const name = document.getElementById('personName').value.trim();
+            const vacationStr = document.getElementById('vacationDays').value.trim();
+            const preferredStr = document.getElementById('preferredDays').value.trim();
+
+            if (!name) {
+                showMessage('이름을 입력해주세요.', 'error');
+                return;
+            }
+
+            if (people.some(p => p.name === name)) {
+                showMessage('이미 존재하는 이름입니다.', 'error');
+                return;
+            }
+
+            const vacationDays = vacationStr ? vacationStr.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d) && d >= 1 && d <= 31) : [];
+            const preferredDays = preferredStr ? preferredStr.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d) && d >= 1 && d <= 31) : [];
+
+            people.push(new Person(name, vacationDays, preferredDays));
+
+            document.getElementById('personName').value = '';
+            document.getElementById('vacationDays').value = '';
+            document.getElementById('preferredDays').value = '';
+
+            renderPersonList();
+            markPeopleModified();
+            showMessage(`${name}님이 추가되었습니다.`, 'success');
+        }
+
+        // 인원 목록 렌더링
+        function renderPersonList() {
+            const listDiv = document.getElementById('personList');
+            document.getElementById('personCount').textContent = people.length;
+
+            if (people.length === 0) {
+                listDiv.innerHTML = '<p class="small-text">인원을 추가하거나 예시 데이터를 불러오세요.</p>';
+                return;
+            }
+
+            let html = '';
+            people.forEach((person, index) => {
+                const isEditing = editingPersonIndex === index;
+
+                if (isEditing) {
+                    html += `
+                        <div class="person-entry edit-mode">
+                            <div class="edit-form-field">
+                                <label>이름</label>
+                                <input type="text" id="editName_${index}" value="${person.name}" onkeydown="handlePersonKeydown(event, ${index})">
+                            </div>
+                            <div class="edit-form-field">
+                                <label>휴가일</label>
+                                <input type="text" id="editVacation_${index}" value="${person.vacationDays.join(', ')}" placeholder="1,5,15" onkeydown="handlePersonKeydown(event, ${index})">
+                            </div>
+                            <div class="edit-form-field">
+                                <label>선호일</label>
+                                <input type="text" id="editPreferred_${index}" value="${person.preferredDays.join(', ')}" placeholder="10,20" onkeydown="handlePersonKeydown(event, ${index})">
+                            </div>
+                            <div class="edit-buttons">
+                                <button onclick="savePersonEdit(${index})" class="success">저장</button>
+                                <button onclick="cancelPersonEdit()" class="secondary">취소</button>
+                                <button onclick="removePerson(${index})" class="danger">삭제</button>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    let tags = '';
+                    if (person.vacationDays.length > 0) {
+                        tags += `<span class="tag vacation">휴가: ${person.vacationDays.join(',')}일</span>`;
+                    }
+                    if (person.preferredDays.length > 0) {
+                        tags += `<span class="tag">선호: ${person.preferredDays.join(',')}일</span>`;
+                    }
+
+                    html += `
+                        <div class="person-entry" onclick="editPerson(${index})">
+                            <h4>${person.name}</h4>
+                            <div class="info">${tags || '제약 없음'}</div>
+                        </div>
+                    `;
+                }
+            });
+
+            listDiv.innerHTML = html;
+        }
+
+        function editPerson(index) {
+            editingPersonIndex = index;
+            renderPersonList();
+            setTimeout(() => {
+                const input = document.getElementById(`editName_${index}`);
+                if (input) input.focus();
+            }, 50);
+        }
+
+        function cancelPersonEdit() {
+            editingPersonIndex = null;
+            renderPersonList();
+        }
+
+        function handlePersonKeydown(event, index) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                savePersonEdit(index);
+            } else if (event.key === 'Escape') {
+                cancelPersonEdit();
+            }
+        }
+
+        function savePersonEdit(index) {
+            const person = people[index];
+            const newName = document.getElementById(`editName_${index}`).value.trim();
+            const vacationStr = document.getElementById(`editVacation_${index}`).value.trim();
+            const preferredStr = document.getElementById(`editPreferred_${index}`).value.trim();
+
+            if (!newName) {
+                showMessage('이름을 입력해주세요.', 'error');
+                return;
+            }
+
+            if (people.some((p, i) => i !== index && p.name === newName)) {
+                showMessage('이미 존재하는 이름입니다.', 'error');
+                return;
+            }
+
+            person.name = newName;
+            person.vacationDays = vacationStr ? vacationStr.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d) && d >= 1 && d <= 31) : [];
+            person.preferredDays = preferredStr ? preferredStr.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d) && d >= 1 && d <= 31) : [];
+
+            editingPersonIndex = null;
+            renderPersonList();
+            markPeopleModified();
+            showMessage(`${person.name}님의 정보가 수정되었습니다.`, 'success');
+        }
+
+        function removePerson(index) {
+            const name = people[index].name;
+            if (confirm(`${name}님을 삭제하시겠습니까?`)) {
+                people.splice(index, 1);
+                editingPersonIndex = null;
+                renderPersonList();
+                markPeopleModified();
+                showMessage(`${name}님이 삭제되었습니다.`, 'success');
+            }
+        }
+
+        // 예시 데이터 로드
+        function loadSampleData() {
+            people = [
+                new Person('김전공', [5, 6], [1, 15]),
+                new Person('이전공', [10, 11, 12], []),
+                new Person('박전공', [], [20, 21]),
+                new Person('최전공', [25], [5]),
+                new Person('정전공', [1, 2], [10]),
+                new Person('한전공', [15, 16], []),
+                new Person('오전공', [], [25, 26]),
+                new Person('서전공', [20], [])
+            ];
+
+            renderPersonList();
+            markPeopleModified();
+            showMessage('예시 데이터가 로드되었습니다. (8명)', 'success');
+        }
+
+        // JSON 저장/불러오기
+        function downloadJSON() {
+            const data = {
+                people: people.map(p => ({
+                    name: p.name,
+                    vacationDays: p.vacationDays,
+                    preferredDays: p.preferredDays
+                })),
+                settings: {
+                    maxConsecutiveHours: parseInt(document.getElementById('maxConsecutiveHours').value),
+                    maxWeeklyHours: parseInt(document.getElementById('maxWeeklyHours').value),
+                    peoplePerSlot: parseInt(document.getElementById('peoplePerSlot').value)
+                }
+            };
+
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `전공의당직_${currentYear}년${currentMonth}월_인원정보.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showMessage('저장되었습니다.', 'success');
+        }
+
+        function uploadJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    people = data.people.map(p => new Person(p.name, p.vacationDays || [], p.preferredDays || []));
+
+                    if (data.settings) {
+                        document.getElementById('maxConsecutiveHours').value = data.settings.maxConsecutiveHours || 36;
+                        document.getElementById('maxWeeklyHours').value = data.settings.maxWeeklyHours || 72;
+                        document.getElementById('peoplePerSlot').value = data.settings.peoplePerSlot || 1;
+                    }
+
+                    renderPersonList();
+                    markPeopleModified();
+                    showMessage(`불러왔습니다. (${people.length}명)`, 'success');
+                } catch (error) {
+                    showMessage('파일 읽기 실패: ' + error.message, 'error');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        function clearAllData() {
+            if (confirm('모든 데이터를 초기화하시겠습니까?')) {
+                people = [];
+                schedule = null;
+                schedules = [];
+                renderPersonList();
+                renderCalendar();
+                renderStatistics();
+                showMessage('초기화되었습니다.', 'info');
+            }
+        }
+
+        // 인원 변경 표시
+        function markPeopleModified() {
+            if (schedule || schedules.length > 0) {
+                peopleModifiedAfterSchedule = true;
+                updateScheduleWarning();
+            }
+        }
+
+        function updateScheduleWarning() {
+            const warning = document.getElementById('scheduleWarning');
+            warning.style.display = peopleModifiedAfterSchedule ? 'block' : 'none';
+        }
+
+        // 월 네비게이션
+        function updateCalendar() {
+            const monthInput = document.getElementById('targetMonth').value;
+            if (monthInput) {
+                const [year, month] = monthInput.split('-');
+                currentYear = parseInt(year);
+                currentMonth = parseInt(month);
+            }
+            document.getElementById('calendarTitle').textContent = `${currentYear}년 ${currentMonth}월`;
+            renderCalendar();
+        }
+
+        function prevMonth() {
+            currentMonth--;
+            if (currentMonth < 1) {
+                currentMonth = 12;
+                currentYear--;
+            }
+            document.getElementById('targetMonth').value = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+            schedule = null;
+            schedules = [];
+            updateScheduleNavigation();
+            renderCalendar();
+            renderStatistics();
+        }
+
+        function nextMonth() {
+            currentMonth++;
+            if (currentMonth > 12) {
+                currentMonth = 1;
+                currentYear++;
+            }
+            document.getElementById('targetMonth').value = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+            schedule = null;
+            schedules = [];
+            updateScheduleNavigation();
+            renderCalendar();
+            renderStatistics();
+        }
+
+        // 캘린더 렌더링
+        function renderCalendar() {
+            const grid = document.getElementById('calendarGrid');
+            const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+            const firstDayOfWeek = new Date(currentYear, currentMonth - 1, 1).getDay();
+
+            let html = '';
+
+            // 요일 헤더
+            DAY_NAMES.forEach((day, i) => {
+                let className = 'calendar-day-header';
+                if (i === 0) className += ' sunday';
+                if (i === 6) className += ' saturday';
+                html += `<div class="${className}">${day}</div>`;
+            });
+
+            // 빈 칸 (월 시작 전)
+            for (let i = 0; i < firstDayOfWeek; i++) {
+                html += '<div class="calendar-day empty"></div>';
+            }
+
+            // 날짜 칸
+            for (let day = 1; day <= daysInMonth; day++) {
+                const date = new Date(currentYear, currentMonth - 1, day);
+                const dayOfWeek = date.getDay();
+                const dateStr = formatDate(currentYear, currentMonth, day);
+
+                let className = 'calendar-day';
+                if (dayOfWeek === 0) className += ' sunday';
+                if (dayOfWeek === 6) className += ' saturday';
+
+                const daySchedule = schedule ? schedule[dateStr] : null;
+
+                html += `<div class="${className}">`;
+                html += `<div class="day-number">${day}</div>`;
+
+                // 주간 슬롯
+                html += renderShiftSlot(dateStr, 'day', daySchedule);
+                // 야간 슬롯
+                html += renderShiftSlot(dateStr, 'night', daySchedule);
+
+                html += '</div>';
+            }
+
+            // 빈 칸 (월 끝 후)
+            const totalCells = firstDayOfWeek + daysInMonth;
+            const remainingCells = (7 - (totalCells % 7)) % 7;
+            for (let i = 0; i < remainingCells; i++) {
+                html += '<div class="calendar-day empty"></div>';
+            }
+
+            grid.innerHTML = html;
+        }
+
+        function renderShiftSlot(dateStr, shift, daySchedule) {
+            const isEditing = editingSlot && editingSlot.date === dateStr && editingSlot.shift === shift;
+            const shiftLabel = shift === 'day' ? '주간' : '야간';
+            const shiftClass = shift === 'day' ? 'day-shift' : 'night-shift';
+            const peoplePerSlot = parseInt(document.getElementById('peoplePerSlot').value) || 1;
+
+            let assigned = [];
+            let isEdited = false;
+
+            if (daySchedule) {
+                assigned = daySchedule[shift] || [];
+                isEdited = daySchedule[shift + 'Edited'] || false;
+            }
+
+            const isEmpty = assigned.length === 0;
+            const slotClass = isEmpty ? 'unassigned' : shiftClass;
+            const editedClass = isEdited ? 'manually-edited' : '';
+            const editModeClass = isEditing ? 'edit-mode' : '';
+
+            if (isEditing) {
+                // 편집 모드
+                let selectsHtml = '';
+                for (let i = 0; i < peoplePerSlot; i++) {
+                    const currentName = assigned[i] || '';
+                    selectsHtml += `
+                        <select id="editSlot_${dateStr}_${shift}_${i}">
+                            <option value="">--선택--</option>
+                            ${people.map(p => `<option value="${p.name}" ${p.name === currentName ? 'selected' : ''}>${p.name}</option>`).join('')}
+                        </select>
+                    `;
+                }
+
+                return `
+                    <div class="shift-slot ${shiftClass} edit-mode" onclick="event.stopPropagation()">
+                        <div><span class="shift-label">${shiftLabel}</span></div>
+                        ${selectsHtml}
+                        <div style="margin-top: 5px; display: flex; gap: 3px;">
+                            <button onclick="saveSlotEdit('${dateStr}', '${shift}')" class="success" style="padding: 3px 6px; font-size: 10px;">저장</button>
+                            <button onclick="cancelSlotEdit()" class="secondary" style="padding: 3px 6px; font-size: 10px;">취소</button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // 표시 모드
+            const namesDisplay = isEmpty ? '미배정' : assigned.join(', ');
+
+            return `
+                <div class="shift-slot ${slotClass} ${editedClass}" onclick="editSlot('${dateStr}', '${shift}')">
+                    <span class="shift-label">${shiftLabel}</span>
+                    <span class="person-name">${namesDisplay}</span>
+                </div>
+            `;
+        }
+
+        function editSlot(dateStr, shift) {
+            if (!schedule) {
+                showMessage('먼저 당직표를 생성해주세요.', 'error');
+                return;
+            }
+            editingSlot = { date: dateStr, shift: shift };
+            renderCalendar();
+        }
+
+        function cancelSlotEdit() {
+            editingSlot = null;
+            renderCalendar();
+        }
+
+        function saveSlotEdit(dateStr, shift) {
+            const peoplePerSlot = parseInt(document.getElementById('peoplePerSlot').value) || 1;
+            const newAssigned = [];
+
+            for (let i = 0; i < peoplePerSlot; i++) {
+                const select = document.getElementById(`editSlot_${dateStr}_${shift}_${i}`);
+                if (select && select.value) {
+                    newAssigned.push(select.value);
+                }
+            }
+
+            // 중복 체크
+            const unique = new Set(newAssigned);
+            if (unique.size !== newAssigned.length) {
+                showMessage('같은 사람이 여러 번 선택되었습니다.', 'error');
+                return;
+            }
+
+            if (!schedule[dateStr]) {
+                schedule[dateStr] = { day: [], night: [], dayEdited: false, nightEdited: false };
+            }
+
+            schedule[dateStr][shift] = newAssigned;
+            schedule[dateStr][shift + 'Edited'] = true;
+
+            // 현재 스케줄을 배열에도 업데이트
+            if (schedules.length > 0) {
+                schedules[currentScheduleIndex] = JSON.parse(JSON.stringify(schedule));
+            }
+
+            editingSlot = null;
+            recalculateHours();
+            renderCalendar();
+            renderStatistics();
+            checkConstraints();
+            showMessage('수정되었습니다.', 'success');
+        }
+
+        // 날짜 포맷
+        function formatDate(year, month, day) {
+            return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        }
+
+        // 스케줄 생성
+        function generateSchedule() {
+            if (people.length === 0) {
+                showMessage('인원을 먼저 추가해주세요.', 'error');
+                return;
+            }
+
+            const result = tryGenerateSchedule();
+
+            if (!result.success) {
+                alert('당직표 생성에 실패했습니다.\n\n' + result.reason + '\n\n제약 조건을 완화하거나 인원을 추가해주세요.');
+                showMessage('생성 실패', 'error');
+                return;
+            }
+
+            schedule = result.schedule;
+            schedules = [schedule];
+            currentScheduleIndex = 0;
+
+            recalculateHours();
+            peopleModifiedAfterSchedule = false;
+            updateScheduleWarning();
+            updateScheduleNavigation();
+            renderCalendar();
+            renderStatistics();
+            checkConstraints();
+            showMessage('당직표가 생성되었습니다!', 'success');
+        }
+
+        function generateMultipleSchedules() {
+            if (people.length === 0) {
+                showMessage('인원을 먼저 추가해주세요.', 'error');
+                return;
+            }
+
+            schedules = [];
+            let attempts = 0;
+            const maxAttempts = 200;
+
+            while (schedules.length < 5 && attempts < maxAttempts) {
+                attempts++;
+                const result = tryGenerateSchedule();
+
+                if (result.success && !isDuplicateSchedule(result.schedule)) {
+                    schedules.push(result.schedule);
+                }
+            }
+
+            if (schedules.length === 0) {
+                alert('당직표 생성에 실패했습니다.\n\n제약 조건을 완화하거나 인원을 추가해주세요.');
+                showMessage('생성 실패', 'error');
+                return;
+            }
+
+            currentScheduleIndex = 0;
+            schedule = schedules[0];
+
+            recalculateHours();
+            peopleModifiedAfterSchedule = false;
+            updateScheduleWarning();
+            updateScheduleNavigation();
+            renderCalendar();
+            renderStatistics();
+            checkConstraints();
+            showMessage(`${schedules.length}개의 당직표가 생성되었습니다!`, 'success');
+        }
+
+        function tryGenerateSchedule() {
+            const maxConsecutiveHours = parseInt(document.getElementById('maxConsecutiveHours').value) || 36;
+            const maxWeeklyHours = parseInt(document.getElementById('maxWeeklyHours').value) || 72;
+            const peoplePerSlot = parseInt(document.getElementById('peoplePerSlot').value) || 1;
+
+            const maxConsecutiveSlots = maxConsecutiveHours / SHIFT_HOURS;
+            const maxWeeklySlots = maxWeeklyHours / SHIFT_HOURS;
+
+            const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+
+            // 인원별 시간 초기화
+            people.forEach(p => p.monthlyHours = 0);
+
+            // 각 인원의 연속 근무 슬롯 추적
+            const consecutiveSlots = {};
+            // 각 인원의 주간 근무 시간 추적 (주차별)
+            const weeklyHours = {};
+
+            people.forEach(p => {
+                consecutiveSlots[p.name] = 0;
+                weeklyHours[p.name] = {};
+            });
+
+            const newSchedule = {};
+            let failureReason = '';
+
+            // 목표 월간 시간 계산 (균등 배분)
+            const totalSlots = daysInMonth * 2 * peoplePerSlot;
+            const targetHoursPerPerson = (totalSlots * SHIFT_HOURS) / people.length;
+
+            // 모든 슬롯 순회 (날짜 + 주간/야간)
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateStr = formatDate(currentYear, currentMonth, day);
+                const date = new Date(currentYear, currentMonth - 1, day);
+                const weekNumber = getWeekNumber(date);
+
+                newSchedule[dateStr] = { day: [], night: [], dayEdited: false, nightEdited: false };
+
+                for (const shift of ['day', 'night']) {
+                    const assigned = [];
+
+                    for (let slot = 0; slot < peoplePerSlot; slot++) {
+                        const person = selectPersonForSlot(
+                            day, shift, assigned, newSchedule,
+                            consecutiveSlots, weeklyHours, weekNumber,
+                            maxConsecutiveSlots, maxWeeklySlots, targetHoursPerPerson
+                        );
+
+                        if (!person) {
+                            failureReason = `${day}일 ${shift === 'day' ? '주간' : '야간'} ${slot + 1}번째 인원 배정 실패`;
+                            return { success: false, reason: failureReason };
+                        }
+
+                        assigned.push(person.name);
+                        person.monthlyHours += SHIFT_HOURS;
+                        consecutiveSlots[person.name]++;
+
+                        if (!weeklyHours[person.name][weekNumber]) {
+                            weeklyHours[person.name][weekNumber] = 0;
+                        }
+                        weeklyHours[person.name][weekNumber] += SHIFT_HOURS;
+                    }
+
+                    newSchedule[dateStr][shift] = assigned;
+
+                    // 이 슬롯에 배정되지 않은 사람들의 연속 카운트 리셋
+                    people.forEach(p => {
+                        if (!assigned.includes(p.name)) {
+                            consecutiveSlots[p.name] = 0;
+                        }
+                    });
+                }
+            }
+
+            return { success: true, schedule: newSchedule };
+        }
+
+        function selectPersonForSlot(day, shift, alreadyAssigned, currentSchedule, consecutiveSlots, weeklyHours, weekNumber, maxConsecutiveSlots, maxWeeklySlots, targetHours) {
+            let candidates = people.filter(p => {
+                // 이미 이 슬롯에 배정됨
+                if (alreadyAssigned.includes(p.name)) return false;
+
+                // 휴가
+                if (p.isOnVacation(day)) return false;
+
+                // 연속 근무 제한
+                if (consecutiveSlots[p.name] >= maxConsecutiveSlots) return false;
+
+                // 주간 근무 제한
+                const currentWeeklyHours = weeklyHours[p.name][weekNumber] || 0;
+                if (currentWeeklyHours >= maxWeeklySlots * SHIFT_HOURS) return false;
+
+                return true;
+            });
+
+            if (candidates.length === 0) return null;
+
+            // 선호일 우선
+            const preferred = candidates.filter(p => p.hasPreferredDay(day));
+            if (preferred.length > 0) {
+                candidates = preferred;
+            }
+
+            // 월간 시간이 적은 사람 우선 (균등 배분)
+            candidates.sort((a, b) => a.monthlyHours - b.monthlyHours);
+
+            // 같은 시간이면 랜덤
+            const minHours = candidates[0].monthlyHours;
+            const best = candidates.filter(p => p.monthlyHours === minHours);
+
+            return best[Math.floor(Math.random() * best.length)];
+        }
+
+        function getWeekNumber(date) {
+            // 해당 월의 몇 번째 주인지 계산
+            const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+            const dayOfMonth = date.getDate();
+            const firstDayOfWeek = firstDayOfMonth.getDay();
+            return Math.ceil((dayOfMonth + firstDayOfWeek) / 7);
+        }
+
+        // 중복 스케줄 체크
+        function isDuplicateSchedule(newSchedule) {
+            for (const existing of schedules) {
+                let isDuplicate = true;
+
+                for (const dateStr in newSchedule) {
+                    if (!existing[dateStr]) {
+                        isDuplicate = false;
+                        break;
+                    }
+
+                    const newDay = [...(newSchedule[dateStr].day || [])].sort().join(',');
+                    const existingDay = [...(existing[dateStr].day || [])].sort().join(',');
+                    const newNight = [...(newSchedule[dateStr].night || [])].sort().join(',');
+                    const existingNight = [...(existing[dateStr].night || [])].sort().join(',');
+
+                    if (newDay !== existingDay || newNight !== existingNight) {
+                        isDuplicate = false;
+                        break;
+                    }
+                }
+
+                if (isDuplicate) return true;
+            }
+            return false;
+        }
+
+        // 스케줄 네비게이션
+        function updateScheduleNavigation() {
+            const nav = document.getElementById('scheduleNavigation');
+            const indicator = document.getElementById('scheduleIndicator');
+
+            if (schedules.length <= 1) {
+                nav.style.display = 'none';
+            } else {
+                nav.style.display = 'block';
+                indicator.textContent = `${currentScheduleIndex + 1} / ${schedules.length}`;
+            }
+        }
+
+        function prevSchedule() {
+            if (currentScheduleIndex > 0) {
+                currentScheduleIndex--;
+                schedule = schedules[currentScheduleIndex];
+                recalculateHours();
+                updateScheduleNavigation();
+                renderCalendar();
+                renderStatistics();
+                checkConstraints();
+            }
+        }
+
+        function nextSchedule() {
+            if (currentScheduleIndex < schedules.length - 1) {
+                currentScheduleIndex++;
+                schedule = schedules[currentScheduleIndex];
+                recalculateHours();
+                updateScheduleNavigation();
+                renderCalendar();
+                renderStatistics();
+                checkConstraints();
+            }
+        }
+
+        // 시간 재계산
+        function recalculateHours() {
+            people.forEach(p => p.monthlyHours = 0);
+
+            if (!schedule) return;
+
+            for (const dateStr in schedule) {
+                const daySchedule = schedule[dateStr];
+                ['day', 'night'].forEach(shift => {
+                    (daySchedule[shift] || []).forEach(name => {
+                        const person = people.find(p => p.name === name);
+                        if (person) {
+                            person.monthlyHours += SHIFT_HOURS;
+                        }
+                    });
+                });
+            }
+        }
+
+        // 제약 조건 체크
+        function checkConstraints() {
+            const warnings = [];
+            const maxConsecutiveHours = parseInt(document.getElementById('maxConsecutiveHours').value) || 36;
+            const maxWeeklyHours = parseInt(document.getElementById('maxWeeklyHours').value) || 72;
+
+            if (!schedule) {
+                document.getElementById('constraintWarnings').innerHTML = '';
+                return;
+            }
+
+            // 연속 근무 체크
+            const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+            const slots = []; // { date, shift, assigned }
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateStr = formatDate(currentYear, currentMonth, day);
+                const daySchedule = schedule[dateStr];
+                if (daySchedule) {
+                    slots.push({ day, shift: 'day', assigned: daySchedule.day || [] });
+                    slots.push({ day, shift: 'night', assigned: daySchedule.night || [] });
+                }
+            }
+
+            // 각 인원별 연속 체크
+            people.forEach(person => {
+                let consecutive = 0;
+                let maxConsecutive = 0;
+
+                slots.forEach(slot => {
+                    if (slot.assigned.includes(person.name)) {
+                        consecutive++;
+                        maxConsecutive = Math.max(maxConsecutive, consecutive);
+                    } else {
+                        consecutive = 0;
+                    }
+                });
+
+                if (maxConsecutive * SHIFT_HOURS > maxConsecutiveHours) {
+                    warnings.push(`${person.name}: 연속 ${maxConsecutive * SHIFT_HOURS}시간 근무 (제한: ${maxConsecutiveHours}시간)`);
+                }
+            });
+
+            // 주간 체크
+            const weeklyHours = {};
+            people.forEach(p => weeklyHours[p.name] = {});
+
+            slots.forEach(slot => {
+                const date = new Date(currentYear, currentMonth - 1, slot.day);
+                const weekNum = getWeekNumber(date);
+
+                slot.assigned.forEach(name => {
+                    if (!weeklyHours[name][weekNum]) weeklyHours[name][weekNum] = 0;
+                    weeklyHours[name][weekNum] += SHIFT_HOURS;
+                });
+            });
+
+            people.forEach(person => {
+                for (const week in weeklyHours[person.name]) {
+                    if (weeklyHours[person.name][week] > maxWeeklyHours) {
+                        warnings.push(`${person.name}: ${week}주차 ${weeklyHours[person.name][week]}시간 근무 (제한: ${maxWeeklyHours}시간)`);
+                    }
+                }
+            });
+
+            const warningsDiv = document.getElementById('constraintWarnings');
+            if (warnings.length > 0) {
+                warningsDiv.innerHTML = `
+                    <div class="constraint-warning">
+                        <strong>⚠️ 제약 조건 위반:</strong><br>
+                        ${warnings.map(w => '• ' + w).join('<br>')}
+                    </div>
+                `;
+            } else {
+                warningsDiv.innerHTML = '';
+            }
+        }
+
+        // 통계 렌더링
+        function renderStatistics() {
+            const statsDiv = document.getElementById('statistics');
+
+            if (!schedule || people.length === 0) {
+                statsDiv.innerHTML = '';
+                return;
+            }
+
+            const avgHours = people.reduce((sum, p) => sum + p.monthlyHours, 0) / people.length;
+
+            let html = '<div class="stats"><h3>📊 월간 근무시간 통계</h3>';
+            html += `<p class="small-text" style="margin-bottom: 15px;">평균: ${avgHours.toFixed(1)}시간 | 목표 편차: ±12시간 이내</p>`;
+            html += '<div class="stats-grid">';
+
+            const sortedPeople = [...people].sort((a, b) => b.monthlyHours - a.monthlyHours);
+
+            sortedPeople.forEach(person => {
+                const diff = person.monthlyHours - avgHours;
+                const isWarning = Math.abs(diff) > 24; // 24시간 이상 차이나면 경고
+                const warningClass = isWarning ? 'warning' : '';
+                const diffText = diff >= 0 ? `+${diff.toFixed(0)}` : diff.toFixed(0);
+
+                html += `
+                    <div class="stat-item ${warningClass}">
+                        <strong>${person.name}</strong>
+                        <div class="hours">${person.monthlyHours}시간</div>
+                        <div class="detail">${person.monthlyHours / SHIFT_HOURS}슬롯 (${diffText}h)</div>
+                    </div>
+                `;
+            });
+
+            html += '</div></div>';
+            statsDiv.innerHTML = html;
+        }
+
+        // 내보내기
+        function exportSchedule() {
+            if (!schedule) {
+                showMessage('먼저 당직표를 생성해주세요.', 'error');
+                return;
+            }
+
+            const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+            let text = `전공의 당직표 - ${currentYear}년 ${currentMonth}월\n`;
+            text += '='.repeat(50) + '\n\n';
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateStr = formatDate(currentYear, currentMonth, day);
+                const date = new Date(currentYear, currentMonth - 1, day);
+                const dayName = DAY_NAMES[date.getDay()];
+                const daySchedule = schedule[dateStr];
+
+                const dayAssigned = daySchedule?.day?.join(', ') || '미배정';
+                const nightAssigned = daySchedule?.night?.join(', ') || '미배정';
+                const dayEdited = daySchedule?.dayEdited ? ' [수정]' : '';
+                const nightEdited = daySchedule?.nightEdited ? ' [수정]' : '';
+
+                text += `${day}일 (${dayName})\n`;
+                text += `  주간 (06-18시): ${dayAssigned}${dayEdited}\n`;
+                text += `  야간 (18-06시): ${nightAssigned}${nightEdited}\n`;
+            }
+
+            text += '\n' + '='.repeat(50) + '\n';
+            text += '월간 근무시간 통계\n\n';
+
+            people.forEach(person => {
+                const slots = person.monthlyHours / SHIFT_HOURS;
+                let extra = '';
+                if (person.vacationDays.length > 0) {
+                    extra += ` (휴가: ${person.vacationDays.join(',')}일)`;
+                }
+                text += `${person.name}: ${person.monthlyHours}시간 (${slots}슬롯)${extra}\n`;
+            });
+
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `전공의당직표_${currentYear}년${currentMonth}월.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            showMessage('당직표가 다운로드되었습니다.', 'success');
+        }
+
+        // 메시지 표시
+        function showMessage(msg, type = 'info') {
+            const messagesDiv = document.getElementById('messages');
+            const alertClass = type === 'error' ? 'alert-error' :
+                              type === 'success' ? 'alert-success' :
+                              type === 'warning' ? 'alert-warning' : 'alert-info';
+            messagesDiv.innerHTML = `<div class="alert ${alertClass}">${msg}</div>`;
+            setTimeout(() => messagesDiv.innerHTML = '', 4000);
+        }
+    </script>
+</body>
+</html>

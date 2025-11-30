@@ -1,0 +1,3057 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>병원 당직표 생성기</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+
+        .input-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .result-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        /* 인원 목록 그리드 레이아웃 */
+        #personList {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 12px;
+            margin-top: 15px;
+        }
+
+        #personList > h3 {
+            grid-column: 1 / -1;
+            margin: 0 0 10px 0;
+            font-size: 18px;
+        }
+
+        .person-entry {
+            background: white;
+            padding: 12px;
+            border-radius: 5px;
+            border-left: 4px solid #3498db;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: box-shadow 0.2s;
+        }
+
+        .person-entry:hover {
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        }
+
+        .person-entry h3 {
+            margin: 0 0 8px 0;
+            color: #2c3e50;
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .person-compact-info {
+            font-size: 12px;
+            color: #666;
+            line-height: 1.5;
+        }
+
+        .person-compact-info strong {
+            color: #2c3e50;
+            font-weight: 600;
+        }
+
+        label {
+            display: block;
+            margin: 8px 0 4px 0;
+            font-weight: 500;
+            color: #555;
+            font-size: 14px;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 5px 0;
+        }
+
+        .checkbox-group label {
+            display: inline-flex;
+            align-items: center;
+            margin: 0;
+            font-weight: normal;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+            margin-right: 5px;
+        }
+
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: background 0.3s;
+            margin: 5px;
+        }
+
+        button:hover {
+            background: #2980b9;
+        }
+
+        button.secondary {
+            background: #95a5a6;
+        }
+
+        button.secondary:hover {
+            background: #7f8c8d;
+        }
+
+        button.danger {
+            background: #e74c3c;
+        }
+
+        button.danger:hover {
+            background: #c0392b;
+        }
+
+        .button-group {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .calendar {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 2px;
+            margin-top: 20px;
+            background: #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .calendar-header-row {
+            display: contents;
+        }
+
+        .calendar-day-header {
+            background: #34495e;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .calendar-day-header.sunday {
+            background: #c0392b;
+        }
+
+        .calendar-day-header.saturday {
+            background: #2980b9;
+        }
+
+        .calendar-day {
+            border: none;
+            padding: 10px;
+            border-radius: 0;
+            background: white;
+            min-height: 90px;
+            position: relative;
+        }
+
+        .calendar-day.empty {
+            background: #f5f5f5;
+        }
+
+        .calendar-day.weekend {
+            background: #f8f9fa;
+        }
+
+        .calendar-day.sunday {
+            background: #fff5f5;
+        }
+
+        .calendar-day.saturday {
+            background: #f5f8ff;
+        }
+
+        .calendar-day.holiday {
+            background: #fff0f0;
+        }
+
+        .calendar-day.week1 { }
+        .calendar-day.week2 { }
+        .calendar-day.week3 { }
+        .calendar-day.week4 { }
+
+        .holiday-name {
+            position: absolute;
+            top: 2px;
+            right: 3px;
+            font-size: 9px;
+            color: #c0392b;
+            font-weight: 600;
+            max-width: 80%;
+            text-align: right;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .day-number-display {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .day-number-display.sunday {
+            color: #c0392b;
+        }
+
+        .day-number-display.saturday {
+            color: #2980b9;
+        }
+
+        .day-number-display.holiday {
+            color: #c0392b;
+        }
+
+        .preview-calendar {
+            margin-top: 15px;
+        }
+
+        .preview-calendar .calendar-day {
+            min-height: 60px;
+            cursor: default;
+        }
+
+        .preview-calendar .day-info {
+            font-size: 10px;
+            color: #888;
+            margin-top: 3px;
+        }
+
+        .day-header {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 8px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .day-number {
+            font-size: 18px;
+            color: #3498db;
+        }
+
+        .duty-assignment {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+
+        .duty-primary {
+            color: #e74c3c;
+            font-weight: 600;
+        }
+
+        .duty-secondary {
+            color: #3498db;
+            font-weight: 500;
+        }
+
+        .stats {
+            background: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .stat-item {
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            border-left: 3px solid #3498db;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+
+        .alert-error {
+            background: #fee;
+            border-left: 4px solid #e74c3c;
+            color: #c0392b;
+        }
+
+        .alert-success {
+            background: #efe;
+            border-left: 4px solid #27ae60;
+            color: #229954;
+        }
+
+        .alert-info {
+            background: #eff;
+            border-left: 4px solid #3498db;
+            color: #2471a3;
+        }
+
+        .small-text {
+            font-size: 12px;
+            color: #7f8c8d;
+            font-style: italic;
+        }
+
+        .add-person-form {
+            background: #e8f4f8;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        .preference-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            margin-left: 5px;
+        }
+
+        .badge-2nd-preferred {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-2nd-limited {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .badge-vacation {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .vacation-indicator {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 5px;
+            border-radius: 3px;
+            font-size: 12px;
+            margin-top: 5px;
+            font-weight: 600;
+        }
+
+        .vacation-form {
+            background: #fff3cd;
+            padding: 8px;
+            border-radius: 4px;
+            margin-top: 8px;
+            border-left: 3px solid #ffc107;
+        }
+
+        .vacation-list {
+            margin-top: 6px;
+        }
+
+        .vacation-item {
+            background: #f8f9fa;
+            padding: 4px 8px;
+            margin: 3px 0;
+            border-radius: 3px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+        }
+
+        .vacation-item button {
+            padding: 2px 6px !important;
+            font-size: 10px !important;
+            margin: 0 !important;
+        }
+
+        .day-range-input {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 5px;
+            align-items: center;
+        }
+
+        .day-range-input input {
+            width: 100%;
+        }
+
+        .calendar-day.editable {
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .calendar-day.editable:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+
+        .calendar-day.manually-edited {
+            border: 2px solid #f39c12;
+            position: relative;
+        }
+
+        .manual-edit-badge {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: #f39c12;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+
+        .edit-mode {
+            background: #fff9e6 !important;
+            border: 2px solid #3498db !important;
+        }
+
+        .edit-controls {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #ddd;
+        }
+
+        .edit-controls select {
+            width: 100%;
+            margin: 5px 0;
+            padding: 5px;
+            font-size: 13px;
+        }
+
+        .edit-controls button {
+            padding: 5px 10px;
+            font-size: 12px;
+            margin: 3px;
+        }
+
+        /* 접기/펼치기 섹션 스타일 */
+        .collapsible-section {
+            margin-top: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .collapsible-header {
+            background: #f8f9fa;
+            padding: 10px 15px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+            transition: background 0.2s;
+        }
+
+        .collapsible-header:hover {
+            background: #e9ecef;
+        }
+
+        .collapsible-header h4 {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .collapsible-toggle {
+            font-size: 18px;
+            font-weight: bold;
+            color: #6c757d;
+            transition: transform 0.3s;
+        }
+
+        .collapsible-toggle.expanded {
+            transform: rotate(180deg);
+        }
+
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .collapsible-content.expanded {
+            max-height: 2000px;
+            transition: max-height 0.5s ease-in;
+        }
+
+        .collapsible-body {
+            padding: 15px;
+            background: white;
+        }
+
+        /* 컴팩트한 주별 제약 레이아웃 */
+        .week-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        .week-item {
+            background: #f8f9fa;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .week-item strong {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 12px;
+        }
+
+        /* 간결한 폼 레이아웃 */
+        .compact-form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .compact-form-grid label {
+            font-size: 13px;
+            margin: 3px 0;
+        }
+
+        .compact-form-grid input,
+        .compact-form-grid select {
+            padding: 6px;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🏥 병원 당직표 자동 생성기</h1>
+
+    <div class="container">
+            <!-- Input Section -->
+            <div class="input-section">
+                <h2>📋 인원 관리</h2>
+
+            <div class="add-person-form">
+                <h3>새 인원 추가</h3>
+
+                <div class="compact-form-grid">
+                    <div>
+                        <label>이름</label>
+                        <input type="text" id="newPersonName" placeholder="이름 입력">
+                    </div>
+                    <div>
+                        <label>최대 당직 횟수</label>
+                        <input type="number" id="newPersonMaxDuties" value="5" min="0" max="20">
+                    </div>
+                </div>
+
+                <div style="margin-top: 10px;">
+                    <label>2nd Duty 선호도</label>
+                    <select id="newPersonSecondDutyPref">
+                        <option value="normal">일반</option>
+                        <option value="preferred">선호 (무제한)</option>
+                        <option value="limited">제한적 (1회만)</option>
+                        <option value="2nd-only">2nd duty만</option>
+                    </select>
+                </div>
+
+                <div style="margin-top: 10px;">
+                    <label>불가능한 요일 (당직)</label>
+                    <div class="checkbox-group">
+                        <label><input type="checkbox" value="월" class="new-unavailable-day"> 월</label>
+                        <label><input type="checkbox" value="화" class="new-unavailable-day"> 화</label>
+                        <label><input type="checkbox" value="수" class="new-unavailable-day"> 수</label>
+                        <label><input type="checkbox" value="목" class="new-unavailable-day"> 목</label>
+                        <label><input type="checkbox" value="금" class="new-unavailable-day"> 금</label>
+                    </div>
+                </div>
+
+                <div style="margin-top: 10px;">
+                    <label>대체 가능 요일 (2nd duty로 가능)</label>
+                    <div class="checkbox-group">
+                        <label><input type="checkbox" value="월" class="new-alternative-day"> 월</label>
+                        <label><input type="checkbox" value="화" class="new-alternative-day"> 화</label>
+                        <label><input type="checkbox" value="수" class="new-alternative-day"> 수</label>
+                        <label><input type="checkbox" value="목" class="new-alternative-day"> 목</label>
+                        <label><input type="checkbox" value="금" class="new-alternative-day"> 금</label>
+                    </div>
+                </div>
+
+                <!-- 주별 제약 접기/펼치기 섹션 -->
+                <div class="collapsible-section">
+                    <div class="collapsible-header" onclick="toggleCollapsible('newPersonWeekly')">
+                        <h4>📅 주별 제약 (선택사항)</h4>
+                        <span class="collapsible-toggle" id="toggle-newPersonWeekly">▼</span>
+                    </div>
+                    <div class="collapsible-content" id="content-newPersonWeekly">
+                        <div class="collapsible-body">
+                            <p class="small-text" style="margin: 0 0 10px 0;">각 주차별로 다른 불가능한 요일을 설정할 수 있습니다.</p>
+                            <div class="week-grid">
+                        <!-- 1주차 -->
+                        <div style="background: white; padding: 10px; border-radius: 4px;">
+                            <strong style="font-size: 13px; color: #e74c3c;">1주차</strong>
+                            <div style="margin-top: 5px;">
+                                <label style="font-size: 11px; margin: 3px 0;">불가능</label>
+                                <div class="checkbox-group">
+                                    <label style="font-size: 12px;"><input type="checkbox" value="월" class="new-week1-unavailable"> 월</label>
+                                    <label style="font-size: 12px;"><input type="checkbox" value="화" class="new-week1-unavailable"> 화</label>
+                                    <label style="font-size: 12px;"><input type="checkbox" value="수" class="new-week1-unavailable"> 수</label>
+                                    <label style="font-size: 12px;"><input type="checkbox" value="목" class="new-week1-unavailable"> 목</label>
+                                    <label style="font-size: 12px;"><input type="checkbox" value="금" class="new-week1-unavailable"> 금</label>
+                                </div>
+                                <label style="font-size: 11px; margin: 3px 0;">2nd 가능</label>
+                                <div class="checkbox-group">
+                                    <label style="font-size: 12px;"><input type="checkbox" value="월" class="new-week1-alternative"> 월</label>
+                                    <label style="font-size: 12px;"><input type="checkbox" value="화" class="new-week1-alternative"> 화</label>
+                                    <label style="font-size: 12px;"><input type="checkbox" value="수" class="new-week1-alternative"> 수</label>
+                                    <label style="font-size: 12px;"><input type="checkbox" value="목" class="new-week1-alternative"> 목</label>
+                                    <label style="font-size: 12px;"><input type="checkbox" value="금" class="new-week1-alternative"> 금</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 2주차 -->
+                        <div style="background: white; padding: 10px; border-radius: 4px;">
+                            <strong style="font-size: 13px; color: #3498db;">2주차</strong>
+                            <div style="margin-top: 5px;">
+                                <label style="font-size: 11px; margin: 3px 0;">불가능</label>
+                                <div class="checkbox-group">
+                                    <label style="font-size: 12px;"><input type="checkbox" value="월" class="new-week2-unavailable"> 월</label>
+                                    <label style="font-size: 12px;"><input type="checkbox" value="화" class="new-week2-unavailable"> 화</label>
+                                    <label style="font-size: 12px;"><input type="checkbox" value="수" class="new-week2-unavailable"> 수</label>
+                                    <label style="font-size: 12px;"><input type="checkbox" value="목" class="new-week2-unavailable"> 목</label>
+                                    <label style="font-size: 12px;"><input type="checkbox" value="금" class="new-week2-unavailable"> 금</label>
+                                </div>
+                                <label style="font-size: 11px; margin: 3px 0;">2nd 가능</label>
+                                <div class="checkbox-group">
+                                    <label style="font-size: 12px;"><input type="checkbox" value="월" class="new-week2-alternative"> 월</label>
+                                    <label style="font-size: 12px;"><input type="checkbox" value="화" class="new-week2-alternative"> 화</label>
+                                    <label style="font-size: 12px;"><input type="checkbox" value="수" class="new-week2-alternative"> 수</label>
+                                    <label style="font-size: 12px;"><input type="checkbox" value="목" class="new-week2-alternative"> 목</label>
+                                    <label style="font-size: 12px;"><input type="checkbox" value="금" class="new-week2-alternative"> 금</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 3주차 -->
+                        <div style="background: white; padding: 10px; border-radius: 4px;">
+                            <strong style="font-size: 13px; color: #27ae60;">3주차</strong>
+                            <div style="margin-top: 5px;">
+                                <label style="font-size: 11px; margin: 3px 0;">불가능</label>
+                                <div class="checkbox-group">
+                                    <label style="font-size: 12px;"><input type="checkbox" value="월" class="new-week3-unavailable"> 월</label>
+                                    <label style="font-size: 12px;"><input type="checkbox" value="화" class="new-week3-unavailable"> 화</label>
+                                    <label style="font-size: 12px;"><input type="checkbox" value="수" class="new-week3-unavailable"> 수</label>
+                                    <label style="font-size: 12px;"><input type="checkbox" value="목" class="new-week3-unavailable"> 목</label>
+                                    <label style="font-size: 12px;"><input type="checkbox" value="금" class="new-week3-unavailable"> 금</label>
+                                </div>
+                                <label style="font-size: 11px; margin: 3px 0;">2nd 가능</label>
+                                <div class="checkbox-group">
+                                    <label style="font-size: 12px;"><input type="checkbox" value="월" class="new-week3-alternative"> 월</label>
+                                    <label style="font-size: 12px;"><input type="checkbox" value="화" class="new-week3-alternative"> 화</label>
+                                    <label style="font-size: 12px;"><input type="checkbox" value="수" class="new-week3-alternative"> 수</label>
+                                    <label style="font-size: 12px;"><input type="checkbox" value="목" class="new-week3-alternative"> 목</label>
+                                    <label style="font-size: 12px;"><input type="checkbox" value="금" class="new-week3-alternative"> 금</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 4주차 -->
+                        <div style="background: white; padding: 10px; border-radius: 4px;">
+                            <strong style="font-size: 13px; color: #f39c12;">4주차</strong>
+                            <div style="margin-top: 5px;">
+                                <label style="font-size: 11px; margin: 3px 0;">불가능</label>
+                                <div class="checkbox-group">
+                                    <label style="font-size: 12px;"><input type="checkbox" value="월" class="new-week4-unavailable"> 월</label>
+                                    <label style="font-size: 12px;"><input type="checkbox" value="화" class="new-week4-unavailable"> 화</label>
+                                    <label style="font-size: 12px;"><input type="checkbox" value="수" class="new-week4-unavailable"> 수</label>
+                                    <label style="font-size: 12px;"><input type="checkbox" value="목" class="new-week4-unavailable"> 목</label>
+                                    <label style="font-size: 12px;"><input type="checkbox" value="금" class="new-week4-unavailable"> 금</label>
+                                </div>
+                                <label style="font-size: 11px; margin: 3px 0;">2nd 가능</label>
+                                <div class="checkbox-group">
+                                    <label style="font-size: 12px;"><input type="checkbox" value="월" class="new-week4-alternative"> 월</label>
+                                    <label style="font-size: 12px;"><input type="checkbox" value="화" class="new-week4-alternative"> 화</label>
+                                    <label style="font-size: 12px;"><input type="checkbox" value="수" class="new-week4-alternative"> 수</label>
+                                    <label style="font-size: 12px;"><input type="checkbox" value="목" class="new-week4-alternative"> 목</label>
+                                    <label style="font-size: 12px;"><input type="checkbox" value="금" class="new-week4-alternative"> 금</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 선호 날짜 접기/펼치기 섹션 -->
+                <div class="collapsible-section">
+                    <div class="collapsible-header" onclick="toggleCollapsible('newPersonPreferred')">
+                        <h4>⭐ 선호 당직 날짜 (선택사항)</h4>
+                        <span class="collapsible-toggle" id="toggle-newPersonPreferred">▼</span>
+                    </div>
+                    <div class="collapsible-content" id="content-newPersonPreferred">
+                        <div class="collapsible-body">
+                            <p class="small-text" style="margin: 0 0 10px 0;">특정 날짜에 당직 또는 2nd 당직으로 우선 배정됩니다.</p>
+                            <div id="newPersonPreferredDuties" style="margin-top: 10px;">
+                                <!-- Preferred duty entries will be added here -->
+                            </div>
+                            <button type="button" onclick="addNewPreferredDutyField()" style="padding: 5px 10px; font-size: 12px; margin-top: 10px; background: #f39c12; color: white; border: none; border-radius: 3px; cursor: pointer;">➕ 선호 날짜 추가</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 휴가 접기/펼치기 섹션 -->
+                <div class="collapsible-section">
+                    <div class="collapsible-header" onclick="toggleCollapsible('newPersonVacation')">
+                        <h4>🏖️ 휴가 (선택사항)</h4>
+                        <span class="collapsible-toggle" id="toggle-newPersonVacation">▼</span>
+                    </div>
+                    <div class="collapsible-content" id="content-newPersonVacation">
+                        <div class="collapsible-body">
+                            <p class="small-text" style="margin: 0 0 10px 0;">휴가 기간 동안은 당직 및 2nd 당직에서 제외됩니다.</p>
+                            <div id="newPersonVacations" style="margin-top: 10px;">
+                                <!-- Vacation entries will be added here -->
+                            </div>
+                            <button type="button" onclick="addNewVacationField()" style="padding: 5px 10px; font-size: 12px; margin-top: 10px; background: #27ae60; color: white; border: none; border-radius: 3px; cursor: pointer;">➕ 휴가 추가</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button onclick="addPerson()">➕ 인원 추가</button>
+                </div>
+            </div>
+
+            <div id="personList"></div>
+
+            <div class="button-group">
+                <button onclick="loadSampleData()">📝 예시 데이터 불러오기</button>
+                <button onclick="downloadJSON()" style="background: #16a085;">📥 사람 정보 저장</button>
+                <button onclick="document.getElementById('jsonFileInput').click()" style="background: #e67e22;">📤 사람 정보 불러오기</button>
+                <input type="file" id="jsonFileInput" accept=".json" style="display: none;" onchange="uploadJSON(event)">
+                <button onclick="clearAllData()" class="danger">🗑️ 전체 삭제</button>
+            </div>
+        </div>
+
+        <!-- Result Section -->
+        <div class="result-section">
+            <h2>📅 당직표</h2>
+
+            <!-- 월 선택 및 캘린더 미리보기 -->
+            <div style="background: #f0f8ff; padding: 15px; border-radius: 5px; margin-bottom: 15px;">
+                <label style="font-size: 14px; font-weight: 600; color: #2c3e50; margin-bottom: 8px; display: block;">📆 대상 월 선택</label>
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <input type="month" id="targetMonthInput" style="padding: 8px; font-size: 14px;" onchange="updateTargetMonth()">
+                    <button onclick="prevMonth()" class="secondary" style="padding: 8px 12px;">◀ 이전달</button>
+                    <button onclick="nextMonth()" class="secondary" style="padding: 8px 12px;">다음달 ▶</button>
+                    <span id="monthInfoDisplay" style="font-size: 13px; color: #666;"></span>
+                </div>
+                <div id="previewCalendar" class="preview-calendar"></div>
+            </div>
+
+            <!-- 당직 인원 설정 -->
+            <div style="background: #fff5f0; padding: 15px; border-radius: 5px; margin-bottom: 15px;">
+                <label style="font-size: 14px; font-weight: 600; color: #2c3e50; margin-bottom: 8px; display: block;">👥 일별 당직 인원 설정</label>
+                <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <label style="font-size: 13px; margin: 0;">🔴 당직:</label>
+                        <input type="number" id="primaryCountPerDayInput" value="1" min="1" max="10" style="width: 60px; padding: 6px; font-size: 14px;" onchange="updateDutyCountSettings()">
+                        <span style="font-size: 13px; color: #666;">명</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <label style="font-size: 13px; margin: 0;">🔵 2nd 당직:</label>
+                        <input type="number" id="secondaryCountPerDayInput" value="1" min="0" max="10" style="width: 60px; padding: 6px; font-size: 14px;" onchange="updateDutyCountSettings()">
+                        <span style="font-size: 13px; color: #666;">명</span>
+                    </div>
+                    <span id="dutyCountDisplay" style="font-size: 12px; color: #888;">(일별 총 2명)</span>
+                </div>
+            </div>
+
+            <div id="scheduleWarning" class="alert alert-error" style="display: none; font-size: 13px; margin-bottom: 10px;">
+                ⚠️ <strong>사람 정보가 변경되었습니다.</strong> 변경된 정보를 반영하려면 당직표를 다시 생성해주세요.
+            </div>
+
+            <div class="button-group">
+                <button onclick="generateSchedule()">🎯 당직표 생성</button>
+                <button onclick="generateMultipleSchedules()">🔄 여러 경우 생성 (5개)</button>
+                <button onclick="exportSchedule()" class="secondary">💾 내보내기</button>
+            </div>
+
+            <div id="scheduleNavigation" style="display: none; text-align: center; margin: 15px 0; padding: 10px; background: #f0f8ff; border-radius: 5px;">
+                <button onclick="previousSchedule()" class="secondary">◀ 이전</button>
+                <span id="scheduleInfo" style="margin: 0 20px; font-weight: 600; color: #2c3e50;">1 / 1</span>
+                <button onclick="nextSchedule()" class="secondary">다음 ▶</button>
+            </div>
+
+            <div class="alert alert-info" style="font-size: 13px;">
+                💡 <strong>팁:</strong> 당직표 생성 후 각 날짜를 클릭하면 당직자를 수동으로 변경할 수 있습니다. 수동 편집된 날짜는 주황색 테두리로 표시됩니다.
+            </div>
+
+            <div id="messages"></div>
+            <div id="calendar"></div>
+            <div id="statistics"></div>
+        </div>
+    </div>
+
+    <script>
+        // Global data
+        let people = [];
+        let schedule = null;
+        let schedules = []; // Multiple schedules storage
+        let currentScheduleIndex = 0; // Current schedule being viewed
+        let startDate = null; // Day1의 시작 날짜 (Date 객체)
+        let peopleModifiedAfterSchedule = false; // 당직표 생성 후 사람 정보 변경 여부
+        const DAYS_OF_WEEK = ['월', '화', '수', '목', '금'];
+        const DAYS_OF_WEEK_FULL = ['일', '월', '화', '수', '목', '금', '토'];
+        const TOTAL_DAYS = 20;
+        const WEEKS = 4;
+
+        // 월별 캘린더 관련
+        let currentYear = new Date().getFullYear();
+        let currentMonth = new Date().getMonth() + 1;
+
+        // 대한민국 공휴일 데이터 (2024-2026)
+        const KOREAN_HOLIDAYS = {
+            // 2024년
+            '2024-01-01': '신정',
+            '2024-02-09': '설날 연휴',
+            '2024-02-10': '설날',
+            '2024-02-11': '설날 연휴',
+            '2024-02-12': '대체공휴일',
+            '2024-03-01': '삼일절',
+            '2024-04-10': '국회의원선거일',
+            '2024-05-05': '어린이날',
+            '2024-05-06': '대체공휴일',
+            '2024-05-15': '부처님오신날',
+            '2024-06-06': '현충일',
+            '2024-08-15': '광복절',
+            '2024-09-16': '추석 연휴',
+            '2024-09-17': '추석',
+            '2024-09-18': '추석 연휴',
+            '2024-10-03': '개천절',
+            '2024-10-09': '한글날',
+            '2024-12-25': '크리스마스',
+            // 2025년
+            '2025-01-01': '신정',
+            '2025-01-28': '설날 연휴',
+            '2025-01-29': '설날',
+            '2025-01-30': '설날 연휴',
+            '2025-03-01': '삼일절',
+            '2025-03-03': '대체공휴일',
+            '2025-05-05': '어린이날',
+            '2025-05-06': '부처님오신날',
+            '2025-06-06': '현충일',
+            '2025-08-15': '광복절',
+            '2025-10-03': '개천절',
+            '2025-10-05': '추석 연휴',
+            '2025-10-06': '추석',
+            '2025-10-07': '추석 연휴',
+            '2025-10-08': '대체공휴일',
+            '2025-10-09': '한글날',
+            '2025-12-25': '크리스마스',
+            // 2026년
+            '2026-01-01': '신정',
+            '2026-02-16': '설날 연휴',
+            '2026-02-17': '설날',
+            '2026-02-18': '설날 연휴',
+            '2026-03-01': '삼일절',
+            '2026-03-02': '대체공휴일',
+            '2026-05-05': '어린이날',
+            '2026-05-24': '부처님오신날',
+            '2026-05-25': '대체공휴일',
+            '2026-06-06': '현충일',
+            '2026-08-15': '광복절',
+            '2026-08-17': '대체공휴일',
+            '2026-09-24': '추석 연휴',
+            '2026-09-25': '추석',
+            '2026-09-26': '추석 연휴',
+            '2026-10-03': '개천절',
+            '2026-10-05': '대체공휴일',
+            '2026-10-09': '한글날',
+            '2026-12-25': '크리스마스'
+        };
+
+        // 공휴일 확인
+        function getHolidayName(year, month, day) {
+            const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            return KOREAN_HOLIDAYS[dateStr] || null;
+        }
+
+        // 초기화
+        document.addEventListener('DOMContentLoaded', function() {
+            const today = new Date();
+            currentYear = today.getFullYear();
+            currentMonth = today.getMonth() + 1;
+            document.getElementById('targetMonthInput').value = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+            updateTargetMonth();
+        });
+
+        // 일별 당직 인원 설정
+        let primaryCountPerDay = 1;  // 일별 당직 인원 수
+        let secondaryCountPerDay = 1;  // 일별 2nd 당직 인원 수
+
+        // 당직 인원 설정 업데이트
+        function updateDutyCountSettings() {
+            const primaryInput = document.getElementById('primaryCountPerDayInput');
+            const secondaryInput = document.getElementById('secondaryCountPerDayInput');
+            const display = document.getElementById('dutyCountDisplay');
+
+            primaryCountPerDay = parseInt(primaryInput.value) || 1;
+            const parsedSecondary = parseInt(secondaryInput.value);
+            secondaryCountPerDay = isNaN(parsedSecondary) ? 0 : parsedSecondary;
+
+            // 유효 범위 검증
+            if (primaryCountPerDay < 1) primaryCountPerDay = 1;
+            if (primaryCountPerDay > 10) primaryCountPerDay = 10;
+            if (secondaryCountPerDay < 0) secondaryCountPerDay = 0;
+            if (secondaryCountPerDay > 10) secondaryCountPerDay = 10;
+
+            primaryInput.value = primaryCountPerDay;
+            secondaryInput.value = secondaryCountPerDay;
+
+            const total = primaryCountPerDay + secondaryCountPerDay;
+            display.textContent = `(일별 총 ${total}명)`;
+        }
+
+        // 사람 정보 변경 시 경고 표시
+        function markPeopleModified() {
+            if (schedule || schedules.length > 0) {
+                peopleModifiedAfterSchedule = true;
+                updateScheduleWarning();
+            }
+        }
+
+        // 경고 표시 업데이트
+        function updateScheduleWarning() {
+            const warningEl = document.getElementById('scheduleWarning');
+            if (warningEl) {
+                warningEl.style.display = peopleModifiedAfterSchedule ? 'block' : 'none';
+            }
+        }
+
+        // 월 선택 관련 함수들
+        function updateTargetMonth() {
+            const input = document.getElementById('targetMonthInput');
+            if (input.value) {
+                const [year, month] = input.value.split('-');
+                currentYear = parseInt(year);
+                currentMonth = parseInt(month);
+            }
+
+            // startDate를 해당 월의 첫 번째 평일로 설정
+            startDate = getFirstWeekday(currentYear, currentMonth);
+
+            updateMonthInfoDisplay();
+            renderPreviewCalendar();
+
+            // 기존 스케줄 초기화
+            schedule = null;
+            schedules = [];
+            currentScheduleIndex = 0;
+            document.getElementById('calendar').innerHTML = '';
+            document.getElementById('statistics').innerHTML = '';
+        }
+
+        function prevMonth() {
+            currentMonth--;
+            if (currentMonth < 1) {
+                currentMonth = 12;
+                currentYear--;
+            }
+            document.getElementById('targetMonthInput').value = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+            updateTargetMonth();
+        }
+
+        function nextMonth() {
+            currentMonth++;
+            if (currentMonth > 12) {
+                currentMonth = 1;
+                currentYear++;
+            }
+            document.getElementById('targetMonthInput').value = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+            updateTargetMonth();
+        }
+
+        function getFirstWeekday(year, month) {
+            const date = new Date(year, month - 1, 1);
+            while (date.getDay() === 0 || date.getDay() === 6) {
+                date.setDate(date.getDate() + 1);
+            }
+            return date;
+        }
+
+        function updateMonthInfoDisplay() {
+            const display = document.getElementById('monthInfoDisplay');
+            const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+
+            // 해당 월의 평일 수 계산
+            let weekdayCount = 0;
+            for (let d = 1; d <= daysInMonth; d++) {
+                const date = new Date(currentYear, currentMonth - 1, d);
+                const dayOfWeek = date.getDay();
+                if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+                    weekdayCount++;
+                }
+            }
+
+            // 공휴일 수 계산
+            let holidayCount = 0;
+            for (let d = 1; d <= daysInMonth; d++) {
+                if (getHolidayName(currentYear, currentMonth, d)) {
+                    holidayCount++;
+                }
+            }
+
+            display.textContent = `(평일 ${weekdayCount}일, 공휴일 ${holidayCount}일)`;
+        }
+
+        // 미리보기 캘린더 렌더링
+        function renderPreviewCalendar() {
+            const container = document.getElementById('previewCalendar');
+            const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+            const firstDayOfWeek = new Date(currentYear, currentMonth - 1, 1).getDay();
+
+            let html = '<div class="calendar">';
+
+            // 요일 헤더
+            DAYS_OF_WEEK_FULL.forEach((day, i) => {
+                let headerClass = 'calendar-day-header';
+                if (i === 0) headerClass += ' sunday';
+                if (i === 6) headerClass += ' saturday';
+                html += `<div class="${headerClass}">${day}</div>`;
+            });
+
+            // 빈 칸 (월 시작 전)
+            for (let i = 0; i < firstDayOfWeek; i++) {
+                html += '<div class="calendar-day empty"></div>';
+            }
+
+            // 날짜 칸
+            let dayCounter = 0; // 평일 카운터 (당직 Day 번호용)
+            for (let day = 1; day <= daysInMonth; day++) {
+                const date = new Date(currentYear, currentMonth - 1, day);
+                const dayOfWeek = date.getDay();
+                const holidayName = getHolidayName(currentYear, currentMonth, day);
+                const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                const isWeekday = !isWeekend;
+
+                let dayClass = 'calendar-day';
+                let numberClass = 'day-number-display';
+
+                if (dayOfWeek === 0) {
+                    dayClass += ' sunday';
+                    numberClass += ' sunday';
+                } else if (dayOfWeek === 6) {
+                    dayClass += ' saturday';
+                    numberClass += ' saturday';
+                }
+
+                if (holidayName) {
+                    dayClass += ' holiday';
+                    numberClass += ' holiday';
+                }
+
+                // 평일이면 Day 번호 증가
+                if (isWeekday) {
+                    dayCounter++;
+                }
+
+                html += `<div class="${dayClass}">`;
+
+                // 공휴일 이름
+                if (holidayName) {
+                    html += `<div class="holiday-name">${holidayName}</div>`;
+                }
+
+                // 날짜 숫자
+                html += `<div class="${numberClass}">${day}</div>`;
+
+                // 평일이면 Day 번호 표시
+                if (isWeekday && dayCounter <= TOTAL_DAYS) {
+                    html += `<div class="day-info">Day ${dayCounter}</div>`;
+                } else if (isWeekend) {
+                    html += `<div class="day-info" style="color: #ccc;">휴무</div>`;
+                } else if (isWeekday && dayCounter > TOTAL_DAYS) {
+                    html += `<div class="day-info" style="color: #ccc;">범위 외</div>`;
+                }
+
+                html += '</div>';
+            }
+
+            // 빈 칸 (월 끝 후)
+            const totalCells = firstDayOfWeek + daysInMonth;
+            const remainingCells = (7 - (totalCells % 7)) % 7;
+            for (let i = 0; i < remainingCells; i++) {
+                html += '<div class="calendar-day empty"></div>';
+            }
+
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        // 기존 호환성을 위한 함수들
+        function updateDateRangeDisplay() {
+            // 이제 updateMonthInfoDisplay로 대체
+            updateMonthInfoDisplay();
+        }
+
+        // Day 번호를 날짜로 변환 (평일만 카운트, 토/일 제외)
+        function dayToDate(dayNumber) {
+            if (!startDate) return null;
+            const date = new Date(startDate);
+            let weekdaysCount = 0;
+
+            while (weekdaysCount < dayNumber) {
+                const dayOfWeek = date.getDay();
+                // 평일인 경우만 카운트 (월=1, 화=2, 수=3, 목=4, 금=5)
+                if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+                    weekdaysCount++;
+                    if (weekdaysCount === dayNumber) {
+                        return new Date(date);
+                    }
+                }
+                date.setDate(date.getDate() + 1);
+            }
+            return null;
+        }
+
+        // 날짜를 Day 번호로 변환 (평일만 카운트, 토/일 제외)
+        function dateToDayNumber(targetDate) {
+            if (!startDate) return null;
+
+            const target = new Date(targetDate);
+            target.setHours(0, 0, 0, 0);
+
+            const start = new Date(startDate);
+            start.setHours(0, 0, 0, 0);
+
+            // 타겟 날짜가 시작 날짜보다 이전이면 null
+            if (target < start) return null;
+
+            // 타겟 날짜가 주말이면 null
+            const targetDayOfWeek = target.getDay();
+            if (targetDayOfWeek === 0 || targetDayOfWeek === 6) return null;
+
+            let weekdaysCount = 0;
+            const current = new Date(start);
+
+            while (current <= target) {
+                const dayOfWeek = current.getDay();
+                // 평일인 경우만 카운트
+                if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+                    weekdaysCount++;
+                }
+                if (current.getTime() === target.getTime()) {
+                    return weekdaysCount;
+                }
+                current.setDate(current.getDate() + 1);
+            }
+            return weekdaysCount;
+        }
+
+        // 날짜를 YYYY-MM-DD 형식으로 포맷
+        function formatDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        // 접기/펼치기 기능
+        function toggleCollapsible(sectionId) {
+            const content = document.getElementById('content-' + sectionId);
+            const toggle = document.getElementById('toggle-' + sectionId);
+
+            if (content.classList.contains('expanded')) {
+                content.classList.remove('expanded');
+                toggle.classList.remove('expanded');
+            } else {
+                content.classList.add('expanded');
+                toggle.classList.add('expanded');
+            }
+        }
+
+        // Person class
+        class Person {
+            constructor(name, unavailableDays, alternativeDays, maxDuties, secondDutyPref, vacations, weeklyRestrictions, preferredDutyDays) {
+                this.name = name;
+                this.unavailableDays = unavailableDays || [];
+                this.alternativeDays = alternativeDays || [];
+                this.maxDuties = maxDuties || 5;
+                this.secondDutyPref = secondDutyPref || 'normal'; // 'normal', 'preferred', 'limited'
+                this.vacations = vacations || []; // Array of {start, end} objects
+                this.weeklyRestrictions = weeklyRestrictions || {}; // {weekNum: {unavailable: [], alternative: []}}
+                this.preferredDutyDays = preferredDutyDays || []; // Array of {day: number, type: 'primary' | 'secondary' | 'any'}
+                this.primaryCount = 0;
+                this.secondaryCount = 0;
+            }
+
+            isOnVacation(dayNumber, dateStr) {
+                return this.vacations.some(v => {
+                    // 날짜 기반 휴가 확인
+                    if (v.startDate && v.endDate) {
+                        if (dateStr) {
+                            return dateStr >= v.startDate && dateStr <= v.endDate;
+                        }
+                        // dayNumber와 startDate로부터 날짜 계산 (평일만 카운트)
+                        if (startDate) {
+                            const checkDate = dayToDate(dayNumber);
+                            if (checkDate) {
+                                const checkDateStr = formatDate(checkDate);
+                                return checkDateStr >= v.startDate && checkDateStr <= v.endDate;
+                            }
+                        }
+                        return false;
+                    }
+                    // 기존 Day 기반 휴가 (하위 호환성)
+                    return dayNumber >= v.start && dayNumber <= v.end;
+                });
+            }
+
+            hasPreferredDuty(dayNumber, type, dateStr) {
+                return this.preferredDutyDays.some(p => {
+                    // 날짜 기반 선호 당직 확인
+                    if (p.date) {
+                        if (dateStr) {
+                            return p.date === dateStr && (type === 'any' || p.type === type || p.type === 'any');
+                        }
+                        // dayNumber와 startDate로부터 날짜 계산 (평일만 카운트)
+                        if (startDate) {
+                            const checkDate = dayToDate(dayNumber);
+                            if (checkDate) {
+                                const checkDateStr = formatDate(checkDate);
+                                return p.date === checkDateStr && (type === 'any' || p.type === type || p.type === 'any');
+                            }
+                        }
+                        return false;
+                    }
+                    // 기존 Day 기반 (하위 호환성)
+                    return p.day === dayNumber && (type === 'any' || p.type === type || p.type === 'any');
+                });
+            }
+
+            addPreferredDuty(date, type) {
+                this.preferredDutyDays.push({ date, type });
+            }
+
+            removePreferredDuty(index) {
+                this.preferredDutyDays.splice(index, 1);
+            }
+
+            canDoPrimaryDuty(dayOfWeek, dayNumber, weekNumber) {
+                // 2nd duty only staff cannot do primary duty
+                if (this.secondDutyPref === '2nd-only') return false;
+
+                if (this.isOnVacation(dayNumber)) return false;
+
+                // Check general unavailable days (applies to all weeks)
+                if (this.unavailableDays.includes(dayOfWeek)) return false;
+
+                // Check week-specific restrictions
+                if (weekNumber && this.weeklyRestrictions[weekNumber]) {
+                    const weekRestriction = this.weeklyRestrictions[weekNumber];
+                    if (weekRestriction.unavailable && weekRestriction.unavailable.includes(dayOfWeek)) {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+
+            canDoSecondaryDuty(dayOfWeek, dayNumber, weekNumber) {
+                if (this.isOnVacation(dayNumber)) return false;
+
+                // Check week-specific restrictions first
+                if (weekNumber && this.weeklyRestrictions[weekNumber]) {
+                    const weekRestriction = this.weeklyRestrictions[weekNumber];
+                    if (weekRestriction.unavailable && weekRestriction.unavailable.includes(dayOfWeek)) {
+                        // Check if this day is in alternative list for this week
+                        return weekRestriction.alternative && weekRestriction.alternative.includes(dayOfWeek);
+                    }
+                }
+
+                // Check general unavailable days
+                if (this.unavailableDays.includes(dayOfWeek)) {
+                    return this.alternativeDays.includes(dayOfWeek);
+                }
+
+                return true;
+            }
+
+            getTotalDuties() {
+                return this.primaryCount + this.secondaryCount;
+            }
+
+            canTakeMoreDuties() {
+                // ABSOLUTE CONSTRAINT: Total duties (primary + secondary) must not exceed maxDuties
+                // This is checked FIRST, regardless of preference
+                const totalDuties = this.getTotalDuties();
+                if (totalDuties >= this.maxDuties) {
+                    return false; // Already at or over max limit
+                }
+
+                // For specific preferences, apply additional rules
+                if (this.secondDutyPref === '2nd-only') {
+                    // 2nd-only staff: secondary count should also not exceed max
+                    return this.secondaryCount < this.maxDuties;
+                }
+                if (this.secondDutyPref === 'limited' && this.secondaryCount >= 1) {
+                    // Limited: max 1 secondary, rest primary
+                    return this.primaryCount < this.maxDuties;
+                }
+
+                // For 'preferred' and 'normal', just check total (already checked above)
+                return true;
+            }
+
+            addVacation(startDate, endDate) {
+                this.vacations.push({ startDate, endDate });
+            }
+
+            removeVacation(index) {
+                this.vacations.splice(index, 1);
+            }
+
+            addWeeklyRestriction(weekNum, unavailableDays, alternativeDays) {
+                this.weeklyRestrictions[weekNum] = {
+                    unavailable: unavailableDays || [],
+                    alternative: alternativeDays || []
+                };
+            }
+
+            removeWeeklyRestriction(weekNum) {
+                delete this.weeklyRestrictions[weekNum];
+            }
+        }
+
+        // Load sample data
+        function loadSampleData() {
+            // Create person with weekly restriction example
+            const kimNayoung = new Person('김나영', ['화', '목', '금'], [], 3, 'normal', [], {}, []);
+            kimNayoung.addWeeklyRestriction(1, ['월', '수'], []);  // 1주차: 월, 수 불가
+            kimNayoung.addWeeklyRestriction(2, ['목', '금'], ['목']);  // 2주차: 목, 금 불가 (목요일은 2nd 가능)
+
+            people = [
+                kimNayoung,
+                new Person('이현규', [], [], 20, 'preferred', [], {}, []),
+                new Person('이정수', ['수', '목'], ['수'], 5, 'normal', [], {}, []),
+                new Person('유영철', ['수', '목', '금'], [], 3, 'normal', [], {}, []),
+                new Person('서지우', ['월', '화'], ['월'], 5, 'normal', [], {}, []),
+                new Person('이민정', ['화', '수'], ['화'], 5, 'normal', [], {}, []),
+                new Person('공희정', ['월', '화'], ['월'], 5, 'normal', [], {}, []),
+                new Person('문지애', ['목', '금'], ['목'], 5, 'normal', [], {}, []),
+                new Person('전병남', ['수', '목'], ['수'], 5, 'normal', [], {}, []),
+                new Person('노현정', ['화', '수'], ['화'], 5, 'normal', [], {}, []),
+                new Person('백지원', [], [], 5, 'limited', [], {}, []),
+                new Person('박수정', ['금', '월'], ['금'], 5, 'normal', [], {}, [])
+            ];
+            renderPersonList();
+            markPeopleModified();
+            showMessage('예시 데이터가 로드되었습니다. (김나영: 1주차 월/수, 2주차 목/금 불가)', 'success');
+        }
+
+        // Add person
+        // Manage preferred duty fields in the add person form
+        let newPersonPreferredDutyCounter = 0;
+
+        function addNewPreferredDutyField() {
+            const container = document.getElementById('newPersonPreferredDuties');
+            const fieldId = newPersonPreferredDutyCounter++;
+
+            const fieldHTML = `
+                <div class="new-preferred-duty-field" id="newPreferredField_${fieldId}" style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; margin-bottom: 10px; padding: 10px; background: white; border-radius: 4px;">
+                    <div>
+                        <label style="font-size: 12px; margin: 3px 0;">날짜</label>
+                        <input type="date" class="new-preferred-day" data-field-id="${fieldId}" style="width: 100%; padding: 5px; border: 1px solid #ddd; border-radius: 3px;">
+                    </div>
+                    <div>
+                        <label style="font-size: 12px; margin: 3px 0;">유형</label>
+                        <select class="new-preferred-type" data-field-id="${fieldId}" style="width: 100%; padding: 5px; border: 1px solid #ddd; border-radius: 3px;">
+                            <option value="any">당직/2nd</option>
+                            <option value="primary">당직만</option>
+                            <option value="secondary">2nd만</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; align-items: flex-end;">
+                        <button type="button" onclick="removeNewPreferredDutyField(${fieldId})" style="padding: 5px 10px; font-size: 12px; background: #e74c3c; color: white; border: none; border-radius: 3px; cursor: pointer;">삭제</button>
+                    </div>
+                </div>
+            `;
+
+            container.insertAdjacentHTML('beforeend', fieldHTML);
+        }
+
+        function removeNewPreferredDutyField(fieldId) {
+            const field = document.getElementById(`newPreferredField_${fieldId}`);
+            if (field) {
+                field.remove();
+            }
+        }
+
+        // Manage vacation fields in the add person form
+        let newPersonVacationCounter = 0;
+
+        function addNewVacationField() {
+            const container = document.getElementById('newPersonVacations');
+            const fieldId = newPersonVacationCounter++;
+
+            const fieldHTML = `
+                <div class="new-vacation-field" id="newVacationField_${fieldId}" style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; margin-bottom: 10px; padding: 10px; background: white; border-radius: 4px;">
+                    <div>
+                        <label style="font-size: 12px; margin: 3px 0;">시작일</label>
+                        <input type="date" class="new-vacation-start" data-field-id="${fieldId}" style="width: 100%; padding: 5px; border: 1px solid #ddd; border-radius: 3px;">
+                    </div>
+                    <div>
+                        <label style="font-size: 12px; margin: 3px 0;">종료일</label>
+                        <input type="date" class="new-vacation-end" data-field-id="${fieldId}" style="width: 100%; padding: 5px; border: 1px solid #ddd; border-radius: 3px;">
+                    </div>
+                    <div style="display: flex; align-items: flex-end;">
+                        <button type="button" onclick="removeNewVacationField(${fieldId})" style="padding: 5px 10px; font-size: 12px; background: #e74c3c; color: white; border: none; border-radius: 3px; cursor: pointer;">삭제</button>
+                    </div>
+                </div>
+            `;
+
+            container.insertAdjacentHTML('beforeend', fieldHTML);
+        }
+
+        function removeNewVacationField(fieldId) {
+            const field = document.getElementById(`newVacationField_${fieldId}`);
+            if (field) {
+                field.remove();
+            }
+        }
+
+        function addPerson() {
+            const name = document.getElementById('newPersonName').value.trim();
+            if (!name) {
+                showMessage('이름을 입력해주세요.', 'error');
+                return;
+            }
+
+            const unavailableDays = Array.from(document.querySelectorAll('.new-unavailable-day:checked'))
+                .map(cb => cb.value);
+            const alternativeDays = Array.from(document.querySelectorAll('.new-alternative-day:checked'))
+                .map(cb => cb.value);
+            const maxDuties = parseInt(document.getElementById('newPersonMaxDuties').value) || 5;
+            const secondDutyPref = document.getElementById('newPersonSecondDutyPref').value;
+
+            // Read weekly restrictions
+            const weeklyRestrictions = {};
+            for (let week = 1; week <= 4; week++) {
+                const weekUnavailable = Array.from(document.querySelectorAll(`.new-week${week}-unavailable:checked`))
+                    .map(cb => cb.value);
+                const weekAlternative = Array.from(document.querySelectorAll(`.new-week${week}-alternative:checked`))
+                    .map(cb => cb.value);
+
+                // Only add if there are restrictions for this week
+                if (weekUnavailable.length > 0 || weekAlternative.length > 0) {
+                    weeklyRestrictions[week] = {
+                        unavailable: weekUnavailable,
+                        alternative: weekAlternative
+                    };
+                }
+            }
+
+            // Read preferred duty dates (날짜 기반)
+            const preferredDutyDays = [];
+            const preferredDayInputs = document.querySelectorAll('.new-preferred-day');
+            const preferredTypeInputs = document.querySelectorAll('.new-preferred-type');
+
+            for (let i = 0; i < preferredDayInputs.length; i++) {
+                const dateValue = preferredDayInputs[i].value;
+                const type = preferredTypeInputs[i].value;
+
+                if (dateValue) {
+                    preferredDutyDays.push({ date: dateValue, type });
+                }
+            }
+
+            // Read vacations (날짜 기반)
+            const vacations = [];
+            const vacationStartInputs = document.querySelectorAll('.new-vacation-start');
+            const vacationEndInputs = document.querySelectorAll('.new-vacation-end');
+
+            for (let i = 0; i < vacationStartInputs.length; i++) {
+                const startDate = vacationStartInputs[i].value;
+                const endDate = vacationEndInputs[i].value;
+
+                if (startDate && endDate) {
+                    if (startDate > endDate) {
+                        showMessage(`휴가 ${i + 1}: 시작일은 종료일보다 이전이어야 합니다.`, 'error');
+                        return;
+                    }
+                    vacations.push({ startDate, endDate });
+                }
+            }
+
+            people.push(new Person(name, unavailableDays, alternativeDays, maxDuties, secondDutyPref, vacations, weeklyRestrictions, preferredDutyDays));
+
+            // Clear form
+            document.getElementById('newPersonName').value = '';
+            document.querySelectorAll('.new-unavailable-day').forEach(cb => cb.checked = false);
+            document.querySelectorAll('.new-alternative-day').forEach(cb => cb.checked = false);
+            document.getElementById('newPersonMaxDuties').value = 5;
+            document.getElementById('newPersonSecondDutyPref').value = 'normal';
+
+            // Clear weekly restrictions
+            for (let week = 1; week <= 4; week++) {
+                document.querySelectorAll(`.new-week${week}-unavailable`).forEach(cb => cb.checked = false);
+                document.querySelectorAll(`.new-week${week}-alternative`).forEach(cb => cb.checked = false);
+            }
+
+            // Clear preferred duty dates
+            document.getElementById('newPersonPreferredDuties').innerHTML = '';
+
+            // Clear vacations
+            document.getElementById('newPersonVacations').innerHTML = '';
+
+            renderPersonList();
+            markPeopleModified();
+            showMessage(`${name} 님이 추가되었습니다.`, 'success');
+        }
+
+        // Remove person
+        function removePerson(index) {
+            const person = people[index];
+            if (confirm(person.name + ' 님을 삭제하시겠습니까?')) {
+                people.splice(index, 1);
+                renderPersonList();
+                markPeopleModified();
+                showMessage('인원이 삭제되었습니다.', 'info');
+            }
+        }
+
+        // Clear all data
+        function clearAllData() {
+            if (confirm('모든 인원 데이터를 삭제하시겠습니까?')) {
+                people = [];
+                schedule = null;
+                schedules = [];
+                startDate = null;
+                peopleModifiedAfterSchedule = false;
+                updateScheduleWarning();
+                document.getElementById('startDateInput').value = '';
+                document.getElementById('dateRangeDisplay').textContent = '';
+                renderPersonList();
+                document.getElementById('calendar').innerHTML = '';
+                document.getElementById('statistics').innerHTML = '';
+                showMessage('모든 데이터가 삭제되었습니다.', 'info');
+            }
+        }
+
+        // 데이터 저장/불러오기 기능
+        function saveToLocalStorage() {
+            const data = {
+                people: people,
+                startDate: startDate ? formatDate(startDate) : null,
+                savedAt: new Date().toISOString()
+            };
+            localStorage.setItem('hospitalDutyScheduler', JSON.stringify(data));
+            showMessage('데이터가 저장되었습니다.', 'success');
+        }
+
+        function loadFromLocalStorage() {
+            const saved = localStorage.getItem('hospitalDutyScheduler');
+            if (!saved) {
+                showMessage('저장된 데이터가 없습니다.', 'error');
+                return;
+            }
+
+            try {
+                const data = JSON.parse(saved);
+
+                // Person 객체로 복원
+                people = data.people.map(p => {
+                    const person = new Person(
+                        p.name,
+                        p.unavailableDays || [],
+                        p.alternativeDays || [],
+                        p.maxDuties || 5,
+                        p.secondDutyPref || 'normal',
+                        p.vacations || [],
+                        p.weeklyRestrictions || {},
+                        p.preferredDutyDays || []
+                    );
+                    person.primaryCount = p.primaryCount || 0;
+                    person.secondaryCount = p.secondaryCount || 0;
+                    return person;
+                });
+
+                // 시작 날짜 복원
+                if (data.startDate) {
+                    startDate = new Date(data.startDate);
+                    document.getElementById('startDateInput').value = data.startDate;
+                    updateDateRangeDisplay();
+                }
+
+                renderPersonList();
+                showMessage(`데이터를 불러왔습니다. (${people.length}명)`, 'success');
+            } catch (error) {
+                showMessage('데이터 불러오기 실패: ' + error.message, 'error');
+            }
+        }
+
+        function downloadJSON() {
+            const data = {
+                people: people,
+                startDate: startDate ? formatDate(startDate) : null,
+                exportedAt: new Date().toISOString()
+            };
+
+            const json = JSON.stringify(data, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const dateStr = new Date().toISOString().slice(0, 10);
+            a.download = `인원정보_${dateStr}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showMessage('사람 정보가 저장되었습니다.', 'success');
+        }
+
+        function uploadJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+
+                    // Person 객체로 복원
+                    people = data.people.map(p => {
+                        const person = new Person(
+                            p.name,
+                            p.unavailableDays || [],
+                            p.alternativeDays || [],
+                            p.maxDuties || 5,
+                            p.secondDutyPref || 'normal',
+                            p.vacations || [],
+                            p.weeklyRestrictions || {},
+                            p.preferredDutyDays || []
+                        );
+                        person.primaryCount = p.primaryCount || 0;
+                        person.secondaryCount = p.secondaryCount || 0;
+                        return person;
+                    });
+
+                    // 시작 날짜 복원
+                    if (data.startDate) {
+                        startDate = new Date(data.startDate);
+                        document.getElementById('startDateInput').value = data.startDate;
+                        updateDateRangeDisplay();
+                    }
+
+                    renderPersonList();
+                    markPeopleModified();
+                    showMessage(`사람 정보를 불러왔습니다. (${people.length}명)`, 'success');
+                } catch (error) {
+                    showMessage('파일 읽기 실패: ' + error.message, 'error');
+                }
+            };
+            reader.readAsText(file);
+
+            // 파일 입력 초기화 (같은 파일 재선택 가능하도록)
+            event.target.value = '';
+        }
+
+        // Render person list
+        function renderPersonList() {
+            const listDiv = document.getElementById('personList');
+            if (people.length === 0) {
+                listDiv.innerHTML = '<p class="small-text">등록된 인원이 없습니다. 위에서 인원을 추가하거나 예시 데이터를 불러오세요.</p>';
+                return;
+            }
+
+            let html = '<h3>등록된 인원 (' + people.length + '명)</h3>';
+            people.forEach((person, index) => {
+                // 배지
+                let badge = '';
+                if (person.secondDutyPref === 'preferred') {
+                    badge = '<span class="preference-badge badge-2nd-preferred">2nd선호</span>';
+                } else if (person.secondDutyPref === 'limited') {
+                    badge = '<span class="preference-badge badge-2nd-limited">2nd1회</span>';
+                } else if (person.secondDutyPref === '2nd-only') {
+                    badge = '<span class="preference-badge badge-vacation">2nd만</span>';
+                }
+
+                // 간단한 요약 정보
+                const unavailSummary = person.unavailableDays.length > 0 ? person.unavailableDays.join(',') : '-';
+                const weeklyCount = person.weeklyRestrictions ? Object.keys(person.weeklyRestrictions).length : 0;
+                const vacationCount = person.vacations ? person.vacations.length : 0;
+                const preferredCount = person.preferredDutyDays ? person.preferredDutyDays.length : 0;
+
+                let vacationHTML = '';
+                if (person.vacations && person.vacations.length > 0) {
+                    vacationHTML = '<div class="vacation-list">';
+                    person.vacations.forEach((vacation, vIdx) => {
+                        const vacText = vacation.startDate ? vacation.startDate + ' ~ ' + vacation.endDate : 'Day ' + vacation.start + ' ~ ' + vacation.end;
+                        vacationHTML += '<div class="vacation-item">';
+                        vacationHTML += '<span>🏖️ ' + vacText + '</span>';
+                        vacationHTML += '<button class="danger btn-delete-vacation" data-person-index="' + index + '" data-vacation-index="' + vIdx + '" style="padding: 3px 8px; font-size: 12px;">삭제</button>';
+                        vacationHTML += '</div>';
+                    });
+                    vacationHTML += '</div>';
+                }
+
+                // Weekly restrictions display and form
+                let weeklyHTML = '';
+                if (person.weeklyRestrictions && Object.keys(person.weeklyRestrictions).length > 0) {
+                    weeklyHTML = '<div class="vacation-list" style="margin-top: 10px;">';
+                    Object.keys(person.weeklyRestrictions).sort().forEach(weekNum => {
+                        const restriction = person.weeklyRestrictions[weekNum];
+                        const unavailText = restriction.unavailable && restriction.unavailable.length > 0
+                            ? restriction.unavailable.join(', ') : '없음';
+                        const altText = restriction.alternative && restriction.alternative.length > 0
+                            ? ', 2nd 가능: ' + restriction.alternative.join(', ') : '';
+                        weeklyHTML += '<div class="vacation-item">';
+                        weeklyHTML += '<span>📅 ' + weekNum + '주차: ' + unavailText + altText + '</span>';
+                        weeklyHTML += '<button class="danger btn-delete-weekly" data-person-index="' + index + '" data-week-num="' + weekNum + '" style="padding: 3px 8px; font-size: 12px;">삭제</button>';
+                        weeklyHTML += '</div>';
+                    });
+                    weeklyHTML += '</div>';
+                }
+
+                // Preferred duty days display
+                let preferredHTML = '';
+                if (person.preferredDutyDays && person.preferredDutyDays.length > 0) {
+                    preferredHTML = '<div class="vacation-list" style="margin-top: 10px;">';
+                    person.preferredDutyDays.forEach((pref, pIdx) => {
+                        let typeText = '';
+                        if (pref.type === 'primary') typeText = '당직';
+                        else if (pref.type === 'secondary') typeText = '2nd duty';
+                        else typeText = '당직/2nd';
+                        const dateText = pref.date || 'Day ' + pref.day;
+                        preferredHTML += '<div class="vacation-item">';
+                        preferredHTML += '<span>⭐ ' + dateText + ': ' + typeText + '</span>';
+                        preferredHTML += '<button class="danger btn-delete-preferred" data-person-index="' + index + '" data-preferred-index="' + pIdx + '" style="padding: 3px 8px; font-size: 12px;">삭제</button>';
+                        preferredHTML += '</div>';
+                    });
+                    preferredHTML += '</div>';
+                }
+
+                html += '<div class="person-entry" id="person_' + index + '">';
+
+                // 헤더: 이름 + 배지
+                html += '<h3>' + person.name + badge + '</h3>';
+
+                // 간단한 요약 정보
+                html += '<div class="person-compact-info">';
+                html += '<strong>최대:</strong> ' + person.maxDuties + '회 | ';
+                html += '<strong>불가:</strong> ' + unavailSummary;
+                if (vacationCount > 0 || weeklyCount > 0 || preferredCount > 0) {
+                    html += ' | ';
+                    const extras = [];
+                    if (vacationCount > 0) extras.push('🏖️' + vacationCount);
+                    if (weeklyCount > 0) extras.push('📅' + weeklyCount);
+                    if (preferredCount > 0) extras.push('⭐' + preferredCount);
+                    html += extras.join(' ');
+                }
+                html += '</div>';
+
+                // 버튼 그룹
+                html += '<div style="display: flex; gap: 5px; margin-top: 8px;">';
+                html += '<button onclick="toggleCollapsible(\'personDetail_' + index + '\')" style="flex: 1; padding: 4px 8px; font-size: 11px; background: #95a5a6;">상세</button>';
+                html += '<button onclick="toggleEditMode(' + index + ')" class="secondary" style="flex: 1; padding: 4px 8px; font-size: 11px;">⚙️ 편집</button>';
+                html += '</div>';
+
+                // 상세 정보 섹션 (접혀있음)
+                html += '<div class="collapsible-content" id="content-personDetail_' + index + '">';
+                html += '<div class="collapsible-body" style="padding: 8px 0;">';
+
+                // 기본 정보
+                html += '<div style="font-size: 11px; color: #666; line-height: 1.6; margin-bottom: 8px;">';
+                html += '<strong>불가 (전체):</strong> ' + (person.unavailableDays.join(', ') || '없음') + '<br>';
+                html += '<strong>2nd 가능:</strong> ' + (person.alternativeDays.join(', ') || '없음');
+                html += '</div>';
+
+                html += '<div class="edit-controls" id="editControls_' + index + '" style="display: none;">';
+                html += '<label style="font-size: 13px; font-weight: 600; color: #2c3e50;">기본 정보 수정</label>';
+                html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px;">';
+                html += '<div>';
+                html += '<label style="font-size: 12px;">최대 당직 횟수</label>';
+                html += '<input type="number" id="editMaxDuties_' + index + '" value="' + person.maxDuties + '" min="1" max="20" style="width: 100%; padding: 5px; font-size: 13px;">';
+                html += '</div>';
+                html += '<div>';
+                html += '<label style="font-size: 12px;">2nd Duty 선호도</label>';
+                html += '<select id="editSecondPref_' + index + '" style="width: 100%; padding: 5px; font-size: 13px;">';
+                html += '<option value="normal"' + (person.secondDutyPref === 'normal' ? ' selected' : '') + '>일반</option>';
+                html += '<option value="preferred"' + (person.secondDutyPref === 'preferred' ? ' selected' : '') + '>2nd 선호</option>';
+                html += '<option value="limited"' + (person.secondDutyPref === 'limited' ? ' selected' : '') + '>제한적 (2nd 1회만)</option>';
+                html += '<option value="2nd-only"' + (person.secondDutyPref === '2nd-only' ? ' selected' : '') + '>2nd만</option>';
+                html += '</select>';
+                html += '</div>';
+                html += '</div>';
+
+                // 불가능한 요일 (전체) 편집
+                html += '<div style="margin-top: 10px;">';
+                html += '<label style="font-size: 12px; font-weight: 600;">불가능한 요일 (전체)</label>';
+                html += '<div class="checkbox-group">';
+                ['월', '화', '수', '목', '금'].forEach(day => {
+                    const checked = person.unavailableDays.includes(day) ? ' checked' : '';
+                    html += '<label style="font-size: 12px;"><input type="checkbox" value="' + day + '" class="edit-unavailable-' + index + '"' + checked + '> ' + day + '</label>';
+                });
+                html += '</div>';
+                html += '</div>';
+
+                // 대체 가능 요일 편집
+                html += '<div style="margin-top: 8px;">';
+                html += '<label style="font-size: 12px; font-weight: 600;">대체 가능 요일 (2nd)</label>';
+                html += '<div class="checkbox-group">';
+                ['월', '화', '수', '목', '금'].forEach(day => {
+                    const checked = person.alternativeDays.includes(day) ? ' checked' : '';
+                    html += '<label style="font-size: 12px;"><input type="checkbox" value="' + day + '" class="edit-alternative-' + index + '"' + checked + '> ' + day + '</label>';
+                });
+                html += '</div>';
+                html += '</div>';
+
+                html += '<button onclick="savePersonEdit(' + index + ')" style="background: #27ae60; margin-top: 6px; padding: 4px 8px; font-size: 11px;">✓ 저장</button>';
+                html += '<button onclick="toggleEditMode(' + index + ')" class="secondary" style="margin-top: 6px; padding: 4px 8px; font-size: 11px;">취소</button>';
+                html += '</div>';
+
+                html += weeklyHTML;
+                html += vacationHTML;
+                html += preferredHTML;
+
+                html += '<div class="vacation-form" style="background: #e8f4f8; padding: 6px; margin-top: 6px;">';
+                html += '<label style="font-size: 11px; margin-bottom: 3px; font-weight: 600;">주별 제약 추가</label>';
+                html += '<div style="display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: start;">';
+                html += '<div>';
+                html += '<label style="font-size: 10px;">주차</label>';
+                html += '<select id="weekNum_' + index + '" style="width: 50px; padding: 3px; font-size: 11px;">';
+                html += '<option value="1">1주</option>';
+                html += '<option value="2">2주</option>';
+                html += '<option value="3">3주</option>';
+                html += '<option value="4">4주</option>';
+                html += '</select>';
+                html += '</div>';
+                html += '<div>';
+                html += '<label style="font-size: 10px;">불가능한 요일</label>';
+                html += '<div class="checkbox-group" style="margin-bottom: 3px; font-size: 10px;">';
+                html += '<label style="font-size: 10px;"><input type="checkbox" value="월" class="week-unavailable-' + index + '"> 월</label>';
+                html += '<label style="font-size: 10px;"><input type="checkbox" value="화" class="week-unavailable-' + index + '"> 화</label>';
+                html += '<label style="font-size: 10px;"><input type="checkbox" value="수" class="week-unavailable-' + index + '"> 수</label>';
+                html += '<label style="font-size: 10px;"><input type="checkbox" value="목" class="week-unavailable-' + index + '"> 목</label>';
+                html += '<label style="font-size: 10px;"><input type="checkbox" value="금" class="week-unavailable-' + index + '"> 금</label>';
+                html += '</div>';
+                html += '<label style="font-size: 10px;">2nd 가능</label>';
+                html += '<div class="checkbox-group" style="font-size: 10px;">';
+                html += '<label style="font-size: 10px;"><input type="checkbox" value="월" class="week-alternative-' + index + '"> 월</label>';
+                html += '<label style="font-size: 10px;"><input type="checkbox" value="화" class="week-alternative-' + index + '"> 화</label>';
+                html += '<label style="font-size: 10px;"><input type="checkbox" value="수" class="week-alternative-' + index + '"> 수</label>';
+                html += '<label style="font-size: 10px;"><input type="checkbox" value="목" class="week-alternative-' + index + '"> 목</label>';
+                html += '<label style="font-size: 10px;"><input type="checkbox" value="금" class="week-alternative-' + index + '"> 금</label>';
+                html += '</div>';
+                html += '</div>';
+                html += '</div>';
+                html += '<button onclick="addWeeklyRestriction(' + index + ')" style="padding: 4px 8px; font-size: 11px; margin-top: 3px; width: 100%;">주별 제약 추가</button>';
+                html += '</div>';
+
+                html += '<div class="vacation-form" style="padding: 6px; margin-top: 6px;">';
+                html += '<label style="font-size: 11px; margin-bottom: 3px; font-weight: 600;">휴가 추가 (날짜 기준)</label>';
+                html += '<div class="day-range-input" style="gap: 3px;">';
+                html += '<input type="date" id="vacStart_' + index + '" style="padding: 3px; font-size: 11px;">';
+                html += '<span style="font-size: 11px;">~</span>';
+                html += '<input type="date" id="vacEnd_' + index + '" style="padding: 3px; font-size: 11px;">';
+                html += '</div>';
+                html += '<button onclick="addVacation(' + index + ')" style="padding: 4px 8px; font-size: 11px; margin-top: 3px; width: 100%;">휴가 추가</button>';
+                html += '</div>';
+
+                html += '<div class="vacation-form" style="background: #fff3e6; padding: 6px; margin-top: 6px;">';
+                html += '<label style="font-size: 11px; margin-bottom: 3px; font-weight: 600;">선호 당직 날짜 추가</label>';
+                html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">';
+                html += '<div>';
+                html += '<label style="font-size: 10px; margin: 2px 0;">날짜</label>';
+                html += '<input type="date" id="prefDay_' + index + '" style="width: 100%; padding: 3px; font-size: 11px;">';
+                html += '</div>';
+                html += '<div>';
+                html += '<label style="font-size: 10px; margin: 2px 0;">유형</label>';
+                html += '<select id="prefType_' + index + '" style="width: 100%; padding: 3px; font-size: 11px;">';
+                html += '<option value="any">당직/2nd</option>';
+                html += '<option value="primary">당직만</option>';
+                html += '<option value="secondary">2nd만</option>';
+                html += '</select>';
+                html += '</div>';
+                html += '</div>';
+                html += '<button onclick="addPreferredDuty(' + index + ')" style="padding: 4px 8px; font-size: 11px; margin-top: 3px; width: 100%;">선호 날짜 추가</button>';
+                html += '</div>';
+
+                html += '<button class="danger btn-delete-person" data-person-index="' + index + '" style="padding: 4px 8px; font-size: 11px; margin-top: 8px; width: 100%;">인원 삭제</button>';
+
+                html += '</div>'; // collapsible-body 닫기
+                html += '</div>'; // collapsible-content 닫기
+                html += '</div>'; // person-entry 닫기
+            });
+            listDiv.innerHTML = html;
+
+            // Add event listeners for delete buttons
+            document.querySelectorAll('.btn-delete-vacation').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const personIndex = parseInt(this.getAttribute('data-person-index'));
+                    const vacationIndex = parseInt(this.getAttribute('data-vacation-index'));
+                    removeVacation(personIndex, vacationIndex);
+                });
+            });
+
+            document.querySelectorAll('.btn-delete-weekly').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const personIndex = parseInt(this.getAttribute('data-person-index'));
+                    const weekNum = this.getAttribute('data-week-num');
+                    removeWeeklyRestriction(personIndex, weekNum);
+                });
+            });
+
+            document.querySelectorAll('.btn-delete-preferred').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const personIndex = parseInt(this.getAttribute('data-person-index'));
+                    const preferredIndex = parseInt(this.getAttribute('data-preferred-index'));
+                    removePreferredDuty(personIndex, preferredIndex);
+                });
+            });
+
+            document.querySelectorAll('.btn-delete-person').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const personIndex = parseInt(this.getAttribute('data-person-index'));
+                    removePerson(personIndex);
+                });
+            });
+        }
+
+        // Add weekly restriction
+        function addWeeklyRestriction(personIndex) {
+            const weekNum = parseInt(document.getElementById(`weekNum_${personIndex}`).value);
+            const unavailableDays = Array.from(document.querySelectorAll(`.week-unavailable-${personIndex}:checked`))
+                .map(cb => cb.value);
+            const alternativeDays = Array.from(document.querySelectorAll(`.week-alternative-${personIndex}:checked`))
+                .map(cb => cb.value);
+
+            if (unavailableDays.length === 0) {
+                showMessage('불가능한 요일을 최소 1개 이상 선택해주세요.', 'error');
+                return;
+            }
+
+            people[personIndex].addWeeklyRestriction(weekNum, unavailableDays, alternativeDays);
+            renderPersonList();
+            markPeopleModified();
+            showMessage(`${people[personIndex].name}의 ${weekNum}주차 제약이 추가되었습니다.`, 'success');
+        }
+
+        // Remove weekly restriction
+        function removeWeeklyRestriction(personIndex, weekNum) {
+            const person = people[personIndex];
+            if (!person || !person.weeklyRestrictions || !person.weeklyRestrictions[weekNum]) {
+                showMessage('삭제 오류: 해당 주차 제약을 찾을 수 없습니다.', 'error');
+                return;
+            }
+
+            if (confirm(`${person.name}의 ${weekNum}주차 제약을 삭제하시겠습니까?`)) {
+                delete person.weeklyRestrictions[weekNum];
+                renderPersonList();
+                markPeopleModified();
+                showMessage('주별 제약이 삭제되었습니다.', 'success');
+            }
+        }
+
+        // Add vacation (날짜 기반)
+        function addVacation(personIndex) {
+            const startInput = document.getElementById(`vacStart_${personIndex}`);
+            const endInput = document.getElementById(`vacEnd_${personIndex}`);
+
+            const startDate = startInput.value;
+            const endDate = endInput.value;
+
+            if (!startDate || !endDate) {
+                showMessage('휴가 시작일과 종료일을 모두 입력해주세요.', 'error');
+                return;
+            }
+
+            if (startDate > endDate) {
+                showMessage('시작일은 종료일보다 이전이어야 합니다.', 'error');
+                return;
+            }
+
+            people[personIndex].addVacation(startDate, endDate);
+            startInput.value = '';
+            endInput.value = '';
+            renderPersonList();
+            markPeopleModified();
+            showMessage(`${people[personIndex].name}의 휴가가 추가되었습니다. (${startDate} ~ ${endDate})`, 'success');
+        }
+
+        // Remove vacation
+        function removeVacation(personIndex, vacationIndex) {
+            const person = people[personIndex];
+            if (!person || !person.vacations || !person.vacations[vacationIndex]) {
+                showMessage('삭제 오류: 휴가를 찾을 수 없습니다.', 'error');
+                return;
+            }
+
+            const vacation = person.vacations[vacationIndex];
+            const vacText = vacation.startDate ? `${vacation.startDate} ~ ${vacation.endDate}` : `Day ${vacation.start} ~ ${vacation.end}`;
+            if (confirm(person.name + '의 휴가 (' + vacText + ')를 삭제하시겠습니까?')) {
+                person.vacations.splice(vacationIndex, 1);
+                renderPersonList();
+                markPeopleModified();
+                showMessage('휴가가 삭제되었습니다.', 'success');
+            }
+        }
+
+        // Add preferred duty day (날짜 기반)
+        function addPreferredDuty(personIndex) {
+            const dayInput = document.getElementById(`prefDay_${personIndex}`);
+            const typeInput = document.getElementById(`prefType_${personIndex}`);
+
+            const dateValue = dayInput.value;
+            const type = typeInput.value;
+
+            if (!dateValue) {
+                showMessage('날짜를 선택해주세요.', 'error');
+                return;
+            }
+
+            people[personIndex].addPreferredDuty(dateValue, type);
+            dayInput.value = '';
+            typeInput.value = 'any';
+            renderPersonList();
+            markPeopleModified();
+            showMessage(`${people[personIndex].name}의 선호 당직 날짜가 추가되었습니다. (${dateValue})`, 'success');
+        }
+
+        // Remove preferred duty day
+        function removePreferredDuty(personIndex, preferredIndex) {
+            const person = people[personIndex];
+            if (!person || !person.preferredDutyDays || !person.preferredDutyDays[preferredIndex]) {
+                showMessage('삭제 오류: 선호 당직 날짜를 찾을 수 없습니다.', 'error');
+                return;
+            }
+
+            const pref = person.preferredDutyDays[preferredIndex];
+            let typeText = pref.type === 'primary' ? '당직' : pref.type === 'secondary' ? '2nd duty' : '당직/2nd';
+            const dateText = pref.date || `Day ${pref.day}`;
+            if (confirm(`${person.name}의 선호 당직 (${dateText}: ${typeText})을 삭제하시겠습니까?`)) {
+                person.preferredDutyDays.splice(preferredIndex, 1);
+                renderPersonList();
+                markPeopleModified();
+                showMessage('선호 당직 날짜가 삭제되었습니다.', 'success');
+            }
+        }
+
+        // Generate schedule
+        function generateSchedule() {
+            if (people.length === 0) {
+                showMessage('인원을 먼저 추가해주세요.', 'error');
+                return;
+            }
+
+            // 인원 수 확인
+            const totalPerDay = primaryCountPerDay + secondaryCountPerDay;
+            if (people.length < totalPerDay) {
+                showMessage(`인원이 부족합니다. 일별 ${totalPerDay}명이 필요한데 ${people.length}명만 등록되어 있습니다.`, 'error');
+                return;
+            }
+
+            // Reset counts
+            people.forEach(p => {
+                p.primaryCount = 0;
+                p.secondaryCount = 0;
+            });
+
+            schedule = [];
+
+            // Try to generate schedule
+            let success = true;
+            let attempts = 0;
+            const maxAttempts = 100;
+            let failureReason = '';
+            let failureDay = 0;
+
+            while (attempts < maxAttempts) {
+                attempts++;
+                schedule = [];
+                people.forEach(p => {
+                    p.primaryCount = 0;
+                    p.secondaryCount = 0;
+                });
+
+                success = true;
+                failureReason = '';
+
+                for (let day = 0; day < TOTAL_DAYS; day++) {
+                    const week = Math.floor(day / 5);
+                    const weekNumber = week + 1;
+                    const dayOfWeek = DAYS_OF_WEEK[day % 5];
+                    const dayNumber = day + 1;
+
+                    // 이 날 배정된 인원 추적
+                    const assignedToday = [];
+
+                    // Find primary duties (다중 인원 지원)
+                    const primaries = [];
+                    for (let i = 0; i < primaryCountPerDay; i++) {
+                        // 선호 당직자 먼저 확인
+                        const preferredPrimaryPeople = people.filter(p =>
+                            !assignedToday.includes(p) &&
+                            p.hasPreferredDuty(dayNumber, 'primary') &&
+                            !p.isOnVacation(dayNumber) &&
+                            p.canTakeMoreDuties()
+                        );
+
+                        let primary = null;
+                        if (preferredPrimaryPeople.length > 0) {
+                            primary = preferredPrimaryPeople[0];
+                        } else {
+                            const primaryCandidates = people.filter(p =>
+                                !assignedToday.includes(p) &&
+                                p.canDoPrimaryDuty(dayOfWeek, dayNumber, weekNumber) &&
+                                p.canTakeMoreDuties() &&
+                                !isConsecutive(schedule, p.name, day)
+                            ).sort((a, b) => {
+                                if (a.maxDuties === b.maxDuties) {
+                                    return a.getTotalDuties() - b.getTotalDuties();
+                                }
+                                return a.primaryCount - b.primaryCount;
+                            });
+
+                            if (primaryCandidates.length === 0) {
+                                success = false;
+                                failureDay = dayNumber;
+                                failureReason = `Day ${dayNumber} (${dayOfWeek}, ${weekNumber}주차): 당직 ${i + 1}번째 인원을 배정할 수 없습니다.`;
+                                break;
+                            }
+                            primary = primaryCandidates[0];
+                        }
+
+                        if (primary) {
+                            primaries.push(primary);
+                            assignedToday.push(primary);
+                            primary.primaryCount++;
+                        }
+                    }
+
+                    if (!success) break;
+
+                    // Find secondary duties (다중 인원 지원)
+                    const secondaries = [];
+                    for (let i = 0; i < secondaryCountPerDay; i++) {
+                        // 선호 2nd 당직자 먼저 확인
+                        const preferredSecondaryPeople = people.filter(p =>
+                            !assignedToday.includes(p) &&
+                            p.hasPreferredDuty(dayNumber, 'secondary') &&
+                            !p.isOnVacation(dayNumber) &&
+                            p.canTakeMoreDuties()
+                        );
+
+                        let secondary = null;
+                        if (preferredSecondaryPeople.length > 0) {
+                            secondary = preferredSecondaryPeople[0];
+                        } else {
+                            const secondaryCandidates = people.filter(p =>
+                                !assignedToday.includes(p) &&
+                                p.canDoSecondaryDuty(dayOfWeek, dayNumber, weekNumber) &&
+                                (p.secondDutyPref === 'preferred' ||
+                                 (p.secondDutyPref === '2nd-only' && p.canTakeMoreDuties()) ||
+                                 (p.secondDutyPref === 'limited' && p.secondaryCount < 1) ||
+                                 (p.secondDutyPref === 'normal' && p.canTakeMoreDuties())) &&
+                                !isConsecutive(schedule, p.name, day)
+                            ).sort((a, b) => {
+                                if (a.secondDutyPref === 'preferred' && b.secondDutyPref !== 'preferred') return -1;
+                                if (b.secondDutyPref === 'preferred' && a.secondDutyPref !== 'preferred') return 1;
+                                if (a.secondDutyPref === '2nd-only' && b.secondDutyPref !== '2nd-only' && b.secondDutyPref !== 'preferred') return -1;
+                                if (b.secondDutyPref === '2nd-only' && a.secondDutyPref !== '2nd-only' && a.secondDutyPref !== 'preferred') return 1;
+                                if (a.maxDuties === b.maxDuties) {
+                                    return a.getTotalDuties() - b.getTotalDuties();
+                                }
+                                return a.secondaryCount - b.secondaryCount;
+                            });
+
+                            if (secondaryCandidates.length === 0) {
+                                success = false;
+                                failureDay = dayNumber;
+                                failureReason = `Day ${dayNumber} (${dayOfWeek}, ${weekNumber}주차): 2nd 당직 ${i + 1}번째 인원을 배정할 수 없습니다.`;
+                                break;
+                            }
+                            secondary = secondaryCandidates[0];
+                        }
+
+                        if (secondary) {
+                            secondaries.push(secondary);
+                            assignedToday.push(secondary);
+                            secondary.secondaryCount++;
+                        }
+                    }
+
+                    if (!success) break;
+
+                    schedule.push({
+                        day: dayNumber,
+                        week: weekNumber,
+                        dayOfWeek: dayOfWeek,
+                        primaries: primaries.map(p => p.name),
+                        secondaries: secondaries.map(p => p.name)
+                    });
+                }
+
+                if (success) break;
+            }
+
+            if (!success) {
+                let errorMsg = '당직표 생성에 실패했습니다.\n\n';
+                if (failureReason) {
+                    errorMsg += `❌ ${failureReason}\n\n`;
+                }
+                errorMsg += `💡 해결 방법:\n`;
+                errorMsg += `- 최대 당직 횟수를 늘려주세요\n`;
+                errorMsg += `- 불가능한 요일 수를 줄여주세요\n`;
+                errorMsg += `- 인원을 추가해주세요\n`;
+                errorMsg += `- 휴가 기간을 조정해주세요\n`;
+                errorMsg += `- 일별 당직 인원 수를 줄여주세요\n\n`;
+                errorMsg += `(${attempts}번 시도)`;
+
+                alert(errorMsg);
+                showMessage('당직표 생성 실패', 'error');
+                return;
+            }
+
+            showMessage(`당직표가 성공적으로 생성되었습니다! (${attempts}번 시도)`, 'success');
+            schedules = [schedule];
+            currentScheduleIndex = 0;
+            peopleModifiedAfterSchedule = false;
+            updateScheduleWarning();
+            document.getElementById('scheduleNavigation').style.display = 'none';
+            renderCalendar();
+            renderStatistics();
+        }
+
+        // Generate multiple schedules
+        function generateMultipleSchedules() {
+            if (people.length === 0) {
+                showMessage('인원을 먼저 추가해주세요.', 'error');
+                return;
+            }
+
+            // 인원 수 확인
+            const totalPerDay = primaryCountPerDay + secondaryCountPerDay;
+            if (people.length < totalPerDay) {
+                showMessage(`인원이 부족합니다. 일별 ${totalPerDay}명이 필요한데 ${people.length}명만 등록되어 있습니다.`, 'error');
+                return;
+            }
+
+            const targetCount = 5;
+            schedules = [];
+            const maxTotalAttempts = 500;
+            let totalAttempts = 0;
+
+            showMessage('여러 경우의 당직표를 생성 중입니다...', 'info');
+
+            while (schedules.length < targetCount && totalAttempts < maxTotalAttempts) {
+                totalAttempts++;
+
+                // Reset counts
+                people.forEach(p => {
+                    p.primaryCount = 0;
+                    p.secondaryCount = 0;
+                });
+
+                let tempSchedule = [];
+                let success = true;
+
+                for (let day = 0; day < TOTAL_DAYS; day++) {
+                    const week = Math.floor(day / 5);
+                    const weekNumber = week + 1;
+                    const dayOfWeek = DAYS_OF_WEEK[day % 5];
+                    const dayNumber = day + 1;
+
+                    // 이 날 배정된 인원 추적
+                    const assignedToday = [];
+
+                    // Find primary duties (다중 인원 지원)
+                    const primaries = [];
+                    for (let i = 0; i < primaryCountPerDay; i++) {
+                        const preferredPrimaryPeople = people.filter(p =>
+                            !assignedToday.includes(p) &&
+                            p.hasPreferredDuty(dayNumber, 'primary') &&
+                            !p.isOnVacation(dayNumber) &&
+                            p.canTakeMoreDuties()
+                        );
+
+                        let primary = null;
+                        if (preferredPrimaryPeople.length > 0) {
+                            primary = preferredPrimaryPeople[0];
+                        } else {
+                            const primaryCandidates = people.filter(p =>
+                                !assignedToday.includes(p) &&
+                                p.canDoPrimaryDuty(dayOfWeek, dayNumber, weekNumber) &&
+                                p.canTakeMoreDuties() &&
+                                !isConsecutive(tempSchedule, p.name, day)
+                            ).sort((a, b) => {
+                                if (a.maxDuties === b.maxDuties) {
+                                    return a.getTotalDuties() - b.getTotalDuties();
+                                }
+                                return a.primaryCount - b.primaryCount;
+                            });
+
+                            if (primaryCandidates.length === 0) {
+                                success = false;
+                                break;
+                            }
+
+                            // Randomly select from candidates with lowest total duties
+                            const firstCandidate = primaryCandidates[0];
+                            const bestCandidates = primaryCandidates.filter(p =>
+                                p.maxDuties === firstCandidate.maxDuties &&
+                                p.getTotalDuties() === firstCandidate.getTotalDuties()
+                            );
+                            primary = bestCandidates[Math.floor(Math.random() * bestCandidates.length)];
+                        }
+
+                        if (primary) {
+                            primaries.push(primary);
+                            assignedToday.push(primary);
+                            primary.primaryCount++;
+                        } else {
+                            success = false;
+                            break;
+                        }
+                    }
+
+                    if (!success) break;
+
+                    // Find secondary duties (다중 인원 지원)
+                    const secondaries = [];
+                    for (let i = 0; i < secondaryCountPerDay; i++) {
+                        const preferredSecondaryPeople = people.filter(p =>
+                            !assignedToday.includes(p) &&
+                            p.hasPreferredDuty(dayNumber, 'secondary') &&
+                            !p.isOnVacation(dayNumber) &&
+                            p.canTakeMoreDuties()
+                        );
+
+                        let secondary = null;
+                        if (preferredSecondaryPeople.length > 0) {
+                            secondary = preferredSecondaryPeople[0];
+                        } else {
+                            const secondaryCandidates = people.filter(p =>
+                                !assignedToday.includes(p) &&
+                                p.canDoSecondaryDuty(dayOfWeek, dayNumber, weekNumber) &&
+                                (p.secondDutyPref === 'preferred' ||
+                                 (p.secondDutyPref === '2nd-only' && p.canTakeMoreDuties()) ||
+                                 (p.secondDutyPref === 'limited' && p.secondaryCount < 1) ||
+                                 (p.secondDutyPref === 'normal' && p.canTakeMoreDuties())) &&
+                                !isConsecutive(tempSchedule, p.name, day)
+                            ).sort((a, b) => {
+                                if (a.secondDutyPref === 'preferred' && b.secondDutyPref !== 'preferred') return -1;
+                                if (b.secondDutyPref === 'preferred' && a.secondDutyPref !== 'preferred') return 1;
+                                if (a.secondDutyPref === '2nd-only' && b.secondDutyPref !== '2nd-only' && b.secondDutyPref !== 'preferred') return -1;
+                                if (b.secondDutyPref === '2nd-only' && a.secondDutyPref !== '2nd-only' && a.secondDutyPref !== 'preferred') return 1;
+                                if (a.maxDuties === b.maxDuties) {
+                                    return a.getTotalDuties() - b.getTotalDuties();
+                                }
+                                return a.secondaryCount - b.secondaryCount;
+                            });
+
+                            if (secondaryCandidates.length === 0) {
+                                success = false;
+                                break;
+                            }
+
+                            const topCandidates = secondaryCandidates.slice(0, Math.min(3, secondaryCandidates.length));
+                            secondary = topCandidates[Math.floor(Math.random() * topCandidates.length)];
+                        }
+
+                        if (secondary) {
+                            secondaries.push(secondary);
+                            assignedToday.push(secondary);
+                            secondary.secondaryCount++;
+                        } else {
+                            success = false;
+                            break;
+                        }
+                    }
+
+                    if (!success) break;
+
+                    tempSchedule.push({
+                        day: dayNumber,
+                        week: weekNumber,
+                        dayOfWeek: dayOfWeek,
+                        primaries: primaries.map(p => p.name),
+                        secondaries: secondaries.map(p => p.name)
+                    });
+                }
+
+                if (success && !isDuplicateSchedule(tempSchedule, schedules)) {
+                    schedules.push(JSON.parse(JSON.stringify(tempSchedule)));
+                }
+            }
+
+            if (schedules.length === 0) {
+                let errorMsg = '당직표 생성에 실패했습니다.\n\n';
+                errorMsg += `❌ ${totalAttempts}번 시도했지만 조건을 만족하는 당직표를 생성하지 못했습니다.\n\n`;
+                errorMsg += `💡 해결 방법:\n`;
+                errorMsg += `- 최대 당직 횟수를 늘려주세요\n`;
+                errorMsg += `- 불가능한 요일 수를 줄여주세요\n`;
+                errorMsg += `- 인원을 추가해주세요\n`;
+                errorMsg += `- 휴가 기간을 조정해주세요\n`;
+                errorMsg += `- 주별 제약 조건을 완화해주세요\n`;
+                errorMsg += `- 일별 당직 인원 수를 줄여주세요`;
+
+                alert(errorMsg);
+                showMessage('당직표 생성 실패', 'error');
+                return;
+            }
+
+            currentScheduleIndex = 0;
+            schedule = schedules[currentScheduleIndex];
+
+            // Recalculate counts for display
+            recalculateCounts();
+
+            peopleModifiedAfterSchedule = false;
+            updateScheduleWarning();
+            showMessage(`${schedules.length}개의 다른 당직표가 생성되었습니다! (총 ${totalAttempts}번 시도)`, 'success');
+            document.getElementById('scheduleNavigation').style.display = 'block';
+            updateScheduleInfo();
+            renderCalendar();
+            renderStatistics();
+        }
+
+        // Check if schedule is duplicate
+        function isDuplicateSchedule(newSchedule, existingSchedules) {
+            return existingSchedules.some(existing => {
+                return existing.every((day, index) => {
+                    const newDay = newSchedule[index];
+                    // 배열 형태 (다중 인원)
+                    if (Array.isArray(day.primaries)) {
+                        return JSON.stringify(day.primaries) === JSON.stringify(newDay.primaries) &&
+                               JSON.stringify(day.secondaries) === JSON.stringify(newDay.secondaries);
+                    }
+                    // 기존 형태 (단일 인원)
+                    return day.primary === newDay.primary && day.secondary === newDay.secondary;
+                });
+            });
+        }
+
+        // Navigate to previous schedule
+        function previousSchedule() {
+            if (schedules.length === 0) return;
+            currentScheduleIndex = (currentScheduleIndex - 1 + schedules.length) % schedules.length;
+            schedule = schedules[currentScheduleIndex];
+            recalculateCounts();
+            updateScheduleInfo();
+            renderCalendar();
+            renderStatistics();
+        }
+
+        // Navigate to next schedule
+        function nextSchedule() {
+            if (schedules.length === 0) return;
+            currentScheduleIndex = (currentScheduleIndex + 1) % schedules.length;
+            schedule = schedules[currentScheduleIndex];
+            recalculateCounts();
+            updateScheduleInfo();
+            renderCalendar();
+            renderStatistics();
+        }
+
+        // Update schedule navigation info
+        function updateScheduleInfo() {
+            const info = document.getElementById('scheduleInfo');
+            info.textContent = `${currentScheduleIndex + 1} / ${schedules.length}`;
+        }
+
+        // Check if assignment would be consecutive
+        function isConsecutive(schedule, personName, currentDay) {
+            if (currentDay === 0) return false;
+
+            const previousDay = schedule[currentDay - 1];
+            if (!previousDay) return false;
+
+            // 배열 형태 지원 (다중 인원)
+            if (Array.isArray(previousDay.primaries)) {
+                return previousDay.primaries.includes(personName) || previousDay.secondaries.includes(personName);
+            }
+            // 기존 단일 인원 형태 지원 (하위 호환)
+            return previousDay.primary === personName || previousDay.secondary === personName;
+        }
+
+        // Current editing day
+        let editingDayIndex = null;
+
+        // 스케줄의 Day 번호로 인덱스 찾기
+        function findScheduleIndex(dayNumber) {
+            if (!schedule) return -1;
+            return schedule.findIndex(d => d.day === dayNumber);
+        }
+
+        // Render calendar - 7일 그리드 레이아웃으로 변경
+        function renderCalendar() {
+            const calendarDiv = document.getElementById('calendar');
+            if (!schedule || schedule.length === 0) {
+                calendarDiv.innerHTML = '';
+                return;
+            }
+
+            const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+            const firstDayOfWeek = new Date(currentYear, currentMonth - 1, 1).getDay();
+
+            // Day 번호를 날짜에 매핑
+            const dayToDateMap = {};
+            let dayCounter = 0;
+            for (let d = 1; d <= daysInMonth; d++) {
+                const date = new Date(currentYear, currentMonth - 1, d);
+                const dow = date.getDay();
+                if (dow >= 1 && dow <= 5) { // 평일만
+                    dayCounter++;
+                    if (dayCounter <= TOTAL_DAYS) {
+                        dayToDateMap[d] = dayCounter;
+                    }
+                }
+            }
+
+            let html = '<div class="calendar">';
+
+            // 요일 헤더
+            DAYS_OF_WEEK_FULL.forEach((day, i) => {
+                let headerClass = 'calendar-day-header';
+                if (i === 0) headerClass += ' sunday';
+                if (i === 6) headerClass += ' saturday';
+                html += `<div class="${headerClass}">${day}</div>`;
+            });
+
+            // 빈 칸 (월 시작 전)
+            for (let i = 0; i < firstDayOfWeek; i++) {
+                html += '<div class="calendar-day empty"></div>';
+            }
+
+            // 날짜 칸
+            for (let dateNum = 1; dateNum <= daysInMonth; dateNum++) {
+                const date = new Date(currentYear, currentMonth - 1, dateNum);
+                const dayOfWeek = date.getDay();
+                const holidayName = getHolidayName(currentYear, currentMonth, dateNum);
+                const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                const dayNumber = dayToDateMap[dateNum]; // Day 1, Day 2 등
+
+                let dayClass = 'calendar-day';
+                let numberClass = 'day-number-display';
+
+                if (dayOfWeek === 0) {
+                    dayClass += ' sunday';
+                    numberClass += ' sunday';
+                } else if (dayOfWeek === 6) {
+                    dayClass += ' saturday';
+                    numberClass += ' saturday';
+                }
+
+                if (holidayName) {
+                    dayClass += ' holiday';
+                    numberClass += ' holiday';
+                }
+
+                // 스케줄 데이터 가져오기
+                const scheduleIndex = dayNumber ? findScheduleIndex(dayNumber) : -1;
+                const dayData = scheduleIndex >= 0 ? schedule[scheduleIndex] : null;
+
+                const isEditing = editingDayIndex === scheduleIndex && scheduleIndex >= 0;
+                const editableClass = dayData ? 'editable' : '';
+                const manuallyEditedClass = dayData?.manuallyEdited ? 'manually-edited' : '';
+                const editModeClass = isEditing ? 'edit-mode' : '';
+
+                html += `<div class="${dayClass} ${editableClass} ${manuallyEditedClass} ${editModeClass}"`;
+
+                if (dayData && !isEditing) {
+                    html += ` onclick="editDay(${scheduleIndex})"`;
+                }
+
+                html += '>';
+
+                // 공휴일 이름
+                if (holidayName) {
+                    html += `<div class="holiday-name">${holidayName}</div>`;
+                }
+
+                // 수동 편집 배지
+                if (dayData?.manuallyEdited) {
+                    html += '<div class="manual-edit-badge">수정</div>';
+                }
+
+                // 날짜 숫자
+                html += `<div class="${numberClass}">${dateNum}</div>`;
+
+                if (isWeekend) {
+                    // 주말
+                    html += '<div class="day-info" style="color: #aaa; font-size: 10px;">휴무</div>';
+                } else if (dayData) {
+                    // 평일 - 당직 정보 표시
+                    const primaries = Array.isArray(dayData.primaries) ? dayData.primaries : [dayData.primary];
+                    const secondaries = Array.isArray(dayData.secondaries) ? dayData.secondaries : [dayData.secondary];
+
+                    if (isEditing) {
+                        // 편집 모드
+                        let editHTML = '<div class="edit-controls" style="margin-top: 5px;">';
+
+                        primaries.forEach((name, i) => {
+                            editHTML += `
+                                <div style="margin-bottom: 3px;">
+                                    <label style="font-size: 10px; margin: 0; color: #e74c3c;">당직${primaries.length > 1 ? (i + 1) : ''}</label>
+                                    <select id="editPrimary_${scheduleIndex}_${i}" style="font-size: 11px; padding: 3px;">
+                                        ${people.map(p => `<option value="${p.name}" ${p.name === name ? 'selected' : ''}>${p.name}</option>`).join('')}
+                                    </select>
+                                </div>
+                            `;
+                        });
+
+                        secondaries.forEach((name, i) => {
+                            editHTML += `
+                                <div style="margin-bottom: 3px;">
+                                    <label style="font-size: 10px; margin: 0; color: #3498db;">2nd${secondaries.length > 1 ? (i + 1) : ''}</label>
+                                    <select id="editSecondary_${scheduleIndex}_${i}" style="font-size: 11px; padding: 3px;">
+                                        ${people.map(p => `<option value="${p.name}" ${p.name === name ? 'selected' : ''}>${p.name}</option>`).join('')}
+                                    </select>
+                                </div>
+                            `;
+                        });
+
+                        editHTML += `
+                            <div style="margin-top: 5px;">
+                                <button onclick="saveEdit(${scheduleIndex})" style="background: #27ae60; padding: 3px 8px; font-size: 10px;">저장</button>
+                                <button onclick="cancelEdit()" class="secondary" style="padding: 3px 8px; font-size: 10px;">취소</button>
+                            </div>
+                        </div>`;
+
+                        html += editHTML;
+                    } else {
+                        // 표시 모드
+                        html += `<div class="day-info" style="font-size: 10px; color: #888;">Day ${dayNumber}</div>`;
+                        html += '<div class="duty-assignment" style="font-size: 11px; margin-top: 3px;">';
+                        primaries.forEach(name => {
+                            html += `<div class="duty-primary" style="font-size: 11px;">🔴 ${name}</div>`;
+                        });
+                        secondaries.forEach(name => {
+                            if (name) html += `<div class="duty-secondary" style="font-size: 11px;">🔵 ${name}</div>`;
+                        });
+                        html += '</div>';
+
+                        // 휴가자 표시
+                        const vacationers = people.filter(p => p.isOnVacation(dayNumber)).map(p => p.name);
+                        if (vacationers.length > 0) {
+                            html += `<div class="vacation-indicator" style="font-size: 9px; padding: 2px;">🏖️ ${vacationers.join(', ')}</div>`;
+                        }
+                    }
+                } else if (!isWeekend && dayNumber) {
+                    // 평일이지만 스케줄 없음
+                    html += `<div class="day-info" style="font-size: 10px; color: #888;">Day ${dayNumber}</div>`;
+                    html += '<div style="font-size: 10px; color: #ccc;">미배정</div>';
+                }
+
+                html += '</div>';
+            }
+
+            // 빈 칸 (월 끝 후)
+            const totalCells = firstDayOfWeek + daysInMonth;
+            const remainingCells = (7 - (totalCells % 7)) % 7;
+            for (let i = 0; i < remainingCells; i++) {
+                html += '<div class="calendar-day empty"></div>';
+            }
+
+            html += '</div>';
+            calendarDiv.innerHTML = html;
+        }
+
+        // Edit day
+        function editDay(dayIndex) {
+            if (editingDayIndex !== null) {
+                cancelEdit();
+            }
+            editingDayIndex = dayIndex;
+            renderCalendar();
+        }
+
+        // Cancel edit
+        function cancelEdit() {
+            editingDayIndex = null;
+            renderCalendar();
+        }
+
+        // Save edit with comprehensive validation
+        function saveEdit(dayIndex) {
+            const day = schedule[dayIndex];
+            const dayOfWeek = day.dayOfWeek;
+            const dayNumber = day.day;
+            const weekNumber = day.week;
+
+            // 현재 배열 형태인지 확인
+            const currentPrimaries = Array.isArray(day.primaries) ? day.primaries : [day.primary];
+            const currentSecondaries = Array.isArray(day.secondaries) ? day.secondaries : [day.secondary];
+
+            // 새로운 값 수집
+            const newPrimaries = [];
+            for (let i = 0; i < currentPrimaries.length; i++) {
+                const select = document.getElementById(`editPrimary_${dayIndex}_${i}`);
+                if (select) newPrimaries.push(select.value);
+            }
+
+            const newSecondaries = [];
+            for (let i = 0; i < currentSecondaries.length; i++) {
+                const select = document.getElementById(`editSecondary_${dayIndex}_${i}`);
+                if (select) newSecondaries.push(select.value);
+            }
+
+            // 중복 체크
+            const allSelected = [...newPrimaries, ...newSecondaries];
+            const uniqueSelected = new Set(allSelected);
+            if (uniqueSelected.size !== allSelected.length) {
+                showMessage('❌ 같은 사람이 여러 번 선택되었습니다. 중복을 제거해주세요.', 'error');
+                return;
+            }
+
+            // Collect all warnings
+            const warnings = [];
+
+            // Validate primary duty assignments
+            newPrimaries.forEach((name, idx) => {
+                const person = people.find(p => p.name === name);
+                if (person) {
+                    if (person.secondDutyPref === '2nd-only') {
+                        warnings.push(`⚠️ ${name}님은 "2nd duty만" 가능한 설정입니다.`);
+                    }
+                    if (person.isOnVacation(dayNumber)) {
+                        warnings.push(`⚠️ ${name}님은 Day ${dayNumber}에 휴가 중입니다.`);
+                    }
+                    if (!person.canDoPrimaryDuty(dayOfWeek, dayNumber, weekNumber)) {
+                        warnings.push(`⚠️ ${name}님은 ${dayOfWeek}요일에 당직을 할 수 없습니다.`);
+                    }
+                    if (isConsecutive(schedule, name, dayIndex)) {
+                        warnings.push(`⚠️ ${name}님은 연속 당직이 됩니다.`);
+                    }
+                }
+            });
+
+            // Validate secondary duty assignments
+            newSecondaries.forEach((name, idx) => {
+                const person = people.find(p => p.name === name);
+                if (person) {
+                    if (person.isOnVacation(dayNumber)) {
+                        warnings.push(`⚠️ ${name}님은 Day ${dayNumber}에 휴가 중입니다.`);
+                    }
+                    if (!person.canDoSecondaryDuty(dayOfWeek, dayNumber, weekNumber)) {
+                        warnings.push(`⚠️ ${name}님은 ${dayOfWeek}요일에 2nd duty를 할 수 없습니다.`);
+                    }
+                    if (isConsecutive(schedule, name, dayIndex)) {
+                        warnings.push(`⚠️ ${name}님은 연속 당직이 됩니다.`);
+                    }
+                }
+            });
+
+            // 임시로 업데이트하여 횟수 체크
+            const tempOldPrimaries = day.primaries;
+            const tempOldSecondaries = day.secondaries;
+            const tempOldPrimary = day.primary;
+            const tempOldSecondary = day.secondary;
+
+            day.primaries = newPrimaries;
+            day.secondaries = newSecondaries;
+            delete day.primary;
+            delete day.secondary;
+            recalculateCounts();
+
+            // Check max duty violations
+            [...newPrimaries, ...newSecondaries].forEach(name => {
+                const person = people.find(p => p.name === name);
+                if (person && person.secondDutyPref !== 'preferred') {
+                    const totalDuties = person.primaryCount + person.secondaryCount;
+                    if (totalDuties > person.maxDuties) {
+                        warnings.push(`⚠️ ${name}님의 당직 횟수가 최대치(${person.maxDuties}회)를 초과합니다. (현재: ${totalDuties}회)`);
+                    }
+                }
+            });
+
+            // If there are warnings, show them and ask for confirmation
+            if (warnings.length > 0) {
+                const warningMessage = warnings.join('\n\n');
+                const confirmMessage = warningMessage + '\n\n계속 진행하시겠습니까?';
+
+                if (!confirm(confirmMessage)) {
+                    // Revert changes
+                    if (tempOldPrimaries) {
+                        day.primaries = tempOldPrimaries;
+                        day.secondaries = tempOldSecondaries;
+                    } else {
+                        day.primary = tempOldPrimary;
+                        day.secondary = tempOldSecondary;
+                        delete day.primaries;
+                        delete day.secondaries;
+                    }
+                    recalculateCounts();
+                    return;
+                }
+            }
+
+            // Mark as manually edited
+            day.manuallyEdited = true;
+
+            editingDayIndex = null;
+            renderCalendar();
+            renderStatistics();
+            showMessage(`✅ Day ${day.day} 당직이 변경되었습니다.`, 'success');
+        }
+
+        // Recalculate duty counts
+        function recalculateCounts() {
+            // Reset all counts
+            people.forEach(p => {
+                p.primaryCount = 0;
+                p.secondaryCount = 0;
+            });
+
+            // Count from schedule
+            schedule.forEach(day => {
+                // 배열 형태 (다중 인원)
+                if (Array.isArray(day.primaries)) {
+                    day.primaries.forEach(name => {
+                        const person = people.find(p => p.name === name);
+                        if (person) person.primaryCount++;
+                    });
+                    day.secondaries.forEach(name => {
+                        const person = people.find(p => p.name === name);
+                        if (person) person.secondaryCount++;
+                    });
+                } else {
+                    // 기존 형태 (단일 인원)
+                    const primaryPerson = people.find(p => p.name === day.primary);
+                    const secondaryPerson = people.find(p => p.name === day.secondary);
+
+                    if (primaryPerson) primaryPerson.primaryCount++;
+                    if (secondaryPerson) secondaryPerson.secondaryCount++;
+                }
+            });
+        }
+
+        // Render statistics
+        function renderStatistics() {
+            const statsDiv = document.getElementById('statistics');
+            if (!schedule || schedule.length === 0) {
+                statsDiv.innerHTML = '';
+                return;
+            }
+
+            let html = '<div class="stats"><h3>📊 통계</h3><div class="stats-grid">';
+            people.forEach(person => {
+                const total = person.primaryCount + person.secondaryCount;
+                const isOverMax = total > person.maxDuties;
+                const totalColor = isOverMax ? 'color: #e74c3c; font-weight: bold;' : '';
+                const warningIcon = isOverMax ? ' ⚠️' : '';
+
+                html += `
+                    <div class="stat-item" style="${isOverMax ? 'border: 2px solid #e74c3c; background: #ffe6e6;' : ''}">
+                        <strong>${person.name}</strong> (최대: ${person.maxDuties}회)${warningIcon}<br>
+                        <span class="small-text">
+                            당직: ${person.primaryCount}회 |
+                            2nd: ${person.secondaryCount}회 |
+                            <span style="${totalColor}">총: ${total}회</span>
+                        </span>
+                    </div>
+                `;
+            });
+            html += '</div></div>';
+            statsDiv.innerHTML = html;
+        }
+
+        // Show message
+        function showMessage(msg, type = 'info') {
+            const messagesDiv = document.getElementById('messages');
+            const alertClass = type === 'error' ? 'alert-error' :
+                              type === 'success' ? 'alert-success' : 'alert-info';
+            messagesDiv.innerHTML = `<div class="alert ${alertClass}">${msg}</div>`;
+            setTimeout(() => {
+                messagesDiv.innerHTML = '';
+            }, 5000);
+        }
+
+        // Export schedule
+        function exportSchedule() {
+            if (!schedule || schedule.length === 0) {
+                showMessage('먼저 당직표를 생성해주세요.', 'error');
+                return;
+            }
+
+            let text = '병원 당직표\n\n';
+
+            // Schedule
+            schedule.forEach(day => {
+                const vacationers = people.filter(p => p.isOnVacation(day.day)).map(p => p.name);
+                let vacInfo = vacationers.length > 0 ? ` (휴가: ${vacationers.join(', ')})` : '';
+                let editInfo = day.manuallyEdited ? ' [수동편집]' : '';
+
+                // 배열 형태와 단일 형태 모두 지원
+                const primaries = Array.isArray(day.primaries) ? day.primaries : [day.primary];
+                const secondaries = Array.isArray(day.secondaries) ? day.secondaries : [day.secondary];
+
+                text += `Day ${day.day} (${day.dayOfWeek}): 당직 ${primaries.join(', ')}, 2nd ${secondaries.join(', ')}${vacInfo}${editInfo}\n`;
+            });
+
+            // Statistics
+            text += '\n통계:\n';
+            people.forEach(person => {
+                let vacText = '';
+                if (person.vacations && person.vacations.length > 0) {
+                    const vacList = person.vacations.map(v => {
+                        if (v.startDate) return `${v.startDate}~${v.endDate}`;
+                        return `Day ${v.start}-${v.end}`;
+                    }).join(', ');
+                    vacText = ` (휴가: ${vacList})`;
+                }
+
+                let weeklyText = '';
+                if (person.weeklyRestrictions && Object.keys(person.weeklyRestrictions).length > 0) {
+                    const weeklyList = Object.keys(person.weeklyRestrictions).sort().map(weekNum => {
+                        const r = person.weeklyRestrictions[weekNum];
+                        const unavail = r.unavailable && r.unavailable.length > 0 ? r.unavailable.join(',') : '';
+                        const alt = r.alternative && r.alternative.length > 0 ? `(2nd:${r.alternative.join(',')})` : '';
+                        return `${weekNum}주:${unavail}${alt}`;
+                    }).join(', ');
+                    weeklyText = ` (주별제약: ${weeklyList})`;
+                }
+
+                text += `${person.name}: 당직 ${person.primaryCount}회, 2nd ${person.secondaryCount}회, 총 ${person.getTotalDuties()}회${vacText}${weeklyText}\n`;
+            });
+
+            // Manual edits summary
+            const manualEdits = schedule.filter(d => d.manuallyEdited);
+            if (manualEdits.length > 0) {
+                text += '\n수동 편집된 날짜:\n';
+                manualEdits.forEach(day => {
+                    text += `- Day ${day.day} (${day.dayOfWeek})\n`;
+                });
+            }
+
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = '당직표_' + new Date().toISOString().slice(0, 10) + '.txt';
+            a.click();
+            URL.revokeObjectURL(url);
+
+            showMessage('당직표가 다운로드되었습니다.', 'success');
+        }
+
+        // Initialize
+        renderPersonList();
+
+        // Toggle edit mode for person
+        function toggleEditMode(personIndex) {
+            const editControls = document.getElementById(`editControls_${personIndex}`);
+            const personEntry = document.getElementById(`person_${personIndex}`);
+
+            if (editControls.style.display === 'none') {
+                editControls.style.display = 'block';
+                personEntry.classList.add('edit-mode');
+            } else {
+                editControls.style.display = 'none';
+                personEntry.classList.remove('edit-mode');
+            }
+        }
+
+        // Save person edit
+        function savePersonEdit(personIndex) {
+            const person = people[personIndex];
+            const newMaxDuties = parseInt(document.getElementById(`editMaxDuties_${personIndex}`).value);
+            const newSecondPref = document.getElementById(`editSecondPref_${personIndex}`).value;
+
+            // 불가능한 요일
+            const newUnavailableDays = Array.from(document.querySelectorAll(`.edit-unavailable-${personIndex}:checked`))
+                .map(cb => cb.value);
+
+            // 대체 가능 요일
+            const newAlternativeDays = Array.from(document.querySelectorAll(`.edit-alternative-${personIndex}:checked`))
+                .map(cb => cb.value);
+
+            if (newMaxDuties < 1 || newMaxDuties > 20) {
+                showMessage('최대 당직 횟수는 1~20 사이여야 합니다.', 'error');
+                return;
+            }
+
+            person.maxDuties = newMaxDuties;
+            person.secondDutyPref = newSecondPref;
+            person.unavailableDays = newUnavailableDays;
+            person.alternativeDays = newAlternativeDays;
+
+            renderPersonList();
+            markPeopleModified();
+            showMessage(`${person.name}님의 정보가 수정되었습니다.`, 'success');
+        }
+    </script>
+</body>
+</html>
