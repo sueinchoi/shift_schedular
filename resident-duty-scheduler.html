@@ -475,7 +475,7 @@
                 <strong>1년차 당직 규칙:</strong><br>
                 • 평일: 당직 1명, 2nd 당직 (월목: 1명, 화수금: 2명)<br>
                 • 주말: 당직 1명<br>
-                • 간이식 담당자는 일/월/수 당직 불가
+                • 간당직 담당자: 화요일 당직 고정, 일/월/수 당직 불가
             </div>
 
             <!-- 인원 추가 -->
@@ -483,14 +483,6 @@
                 <h4>인원 관리</h4>
                 <div class="settings-row">
                     <input type="text" id="year1-name" placeholder="이름" style="width: 100px;">
-                    <label class="checkbox-item">
-                        <input type="checkbox" id="year1-lt">
-                        LT방 담당 (화요일 고정)
-                    </label>
-                    <label class="checkbox-item">
-                        <input type="checkbox" id="year1-liver">
-                        간이식 (일/월/수 불가)
-                    </label>
                     <button onclick="addPerson('year1')" class="primary">추가</button>
                 </div>
                 <div id="year1-persons" class="person-list"></div>
@@ -507,6 +499,7 @@
                 <button onclick="generateSchedule('year1')" class="success">당직표 생성</button>
                 <button onclick="saveSchedule('year1')" class="primary">저장</button>
                 <button onclick="loadSchedule('year1')" class="secondary">불러오기</button>
+                <button onclick="loadExampleData('year1')" class="secondary">예시 데이터 로드</button>
             </div>
 
             <div id="year1-messages"></div>
@@ -523,7 +516,8 @@
             <div class="alert alert-info">
                 <strong>2년차 당직 규칙:</strong><br>
                 • 평일: 당직 1명, 2nd 당직 (월목: 2명, 화수금: 1명)<br>
-                • 주말: 당직 1명, 2nd 당직 1명
+                • 주말: 당직 1명<br>
+                • 간당직 담당자: 화요일 당직 고정, 일/월/수 당직 불가
             </div>
 
             <!-- 인원 추가 -->
@@ -531,10 +525,6 @@
                 <h4>인원 관리</h4>
                 <div class="settings-row">
                     <input type="text" id="year2-name" placeholder="이름" style="width: 100px;">
-                    <label class="checkbox-item">
-                        <input type="checkbox" id="year2-lt">
-                        LT방 담당 (화요일 고정)
-                    </label>
                     <button onclick="addPerson('year2')" class="primary">추가</button>
                 </div>
                 <div id="year2-persons" class="person-list"></div>
@@ -551,6 +541,7 @@
                 <button onclick="generateSchedule('year2')" class="success">당직표 생성</button>
                 <button onclick="saveSchedule('year2')" class="primary">저장</button>
                 <button onclick="loadSchedule('year2')" class="secondary">불러오기</button>
+                <button onclick="loadExampleData('year2')" class="secondary">예시 데이터 로드</button>
             </div>
 
             <div id="year2-messages"></div>
@@ -566,7 +557,8 @@
 
             <div class="alert alert-info">
                 <strong>시니어 당직 규칙:</strong><br>
-                • 평일/주말 상관없이 당직 1명
+                • 평일/주말 상관없이 당직 1명<br>
+                • 간당직 담당자: 화요일 당직 고정, 일/월/수 당직 불가
             </div>
 
             <!-- 인원 추가 -->
@@ -574,10 +566,6 @@
                 <h4>인원 관리</h4>
                 <div class="settings-row">
                     <input type="text" id="senior-name" placeholder="이름" style="width: 100px;">
-                    <label class="checkbox-item">
-                        <input type="checkbox" id="senior-lt">
-                        LT방 담당 (화요일 고정)
-                    </label>
                     <button onclick="addPerson('senior')" class="primary">추가</button>
                 </div>
                 <div id="senior-persons" class="person-list"></div>
@@ -594,6 +582,7 @@
                 <button onclick="generateSchedule('senior')" class="success">당직표 생성</button>
                 <button onclick="saveSchedule('senior')" class="primary">저장</button>
                 <button onclick="loadSchedule('senior')" class="secondary">불러오기</button>
+                <button onclick="loadExampleData('senior')" class="secondary">예시 데이터 로드</button>
             </div>
 
             <div id="senior-messages"></div>
@@ -732,8 +721,6 @@
         // ===== 인원 관리 =====
         function addPerson(yearType) {
             const nameInput = document.getElementById(`${yearType}-name`);
-            const ltCheckbox = document.getElementById(`${yearType}-lt`);
-            const liverCheckbox = document.getElementById(`${yearType}-liver`);
 
             const name = nameInput.value.trim();
             if (!name) {
@@ -749,8 +736,6 @@
 
             const person = {
                 name: name,
-                isLTManager: ltCheckbox?.checked || false,
-                isLiverTransplant: liverCheckbox?.checked || false,
                 primaryCount: 0,
                 secondaryCount: 0,
                 mondayToThursdayCount: 0, // 월~목 당직
@@ -761,16 +746,9 @@
                 eodangOutCount: 0 // 어당아웃 (월~목,일)
             };
 
-            // LT방 담당은 하나만
-            if (person.isLTManager) {
-                data[yearType].persons.forEach(p => p.isLTManager = false);
-            }
-
             data[yearType].persons.push(person);
 
             nameInput.value = '';
-            if (ltCheckbox) ltCheckbox.checked = false;
-            if (liverCheckbox) liverCheckbox.checked = false;
 
             renderPersonList(yearType);
             renderWeekDutySelector(yearType);
@@ -786,20 +764,6 @@
             }
         }
 
-        function toggleLTManager(yearType, index) {
-            // 다른 사람들의 LT 해제
-            data[yearType].persons.forEach((p, i) => {
-                p.isLTManager = (i === index) ? !p.isLTManager : false;
-            });
-            renderPersonList(yearType);
-        }
-
-        function toggleLiverTransplant(yearType, index) {
-            data[yearType].persons[index].isLiverTransplant =
-                !data[yearType].persons[index].isLiverTransplant;
-            renderPersonList(yearType);
-        }
-
         function renderPersonList(yearType) {
             const container = document.getElementById(`${yearType}-persons`);
             const persons = data[yearType].persons;
@@ -809,31 +773,28 @@
                 return;
             }
 
+            // 이번 달 간당직 담당 주차 확인
+            const weekDuty = data[yearType].weekDuty || {};
+            const weekDutyInfo = {};
+            Object.entries(weekDuty).forEach(([week, name]) => {
+                if (name) {
+                    if (!weekDutyInfo[name]) weekDutyInfo[name] = [];
+                    weekDutyInfo[name].push(week);
+                }
+            });
+
             let html = '';
             persons.forEach((person, index) => {
-                const ltClass = person.isLTManager ? 'lt-manager' : '';
-                const liverClass = person.isLiverTransplant ? 'liver-transplant' : '';
+                const hasWeekDuty = weekDutyInfo[person.name];
+                const weekDutyClass = hasWeekDuty ? 'lt-manager' : '';
 
                 html += `
-                    <div class="person-card ${ltClass} ${liverClass}">
+                    <div class="person-card ${weekDutyClass}">
                         <div class="person-name">${person.name}</div>
                         <div class="person-badges">
-                            ${person.isLTManager ? '<span class="badge lt-manager">LT방 담당</span>' : ''}
-                            ${person.isLiverTransplant ? '<span class="badge liver-transplant">간이식</span>' : ''}
+                            ${hasWeekDuty ? `<span class="badge week-duty">간당직: ${weekDutyInfo[person.name].join(', ')}주차</span>` : ''}
                         </div>
                         <div style="display: flex; gap: 5px; flex-wrap: wrap;">
-                            <button onclick="toggleLTManager('${yearType}', ${index})"
-                                    class="${person.isLTManager ? 'danger' : 'secondary'}"
-                                    style="padding: 3px 8px; font-size: 11px;">
-                                ${person.isLTManager ? 'LT해제' : 'LT지정'}
-                            </button>
-                            ${yearType === 'year1' ? `
-                                <button onclick="toggleLiverTransplant('${yearType}', ${index})"
-                                        class="${person.isLiverTransplant ? 'danger' : 'secondary'}"
-                                        style="padding: 3px 8px; font-size: 11px;">
-                                    ${person.isLiverTransplant ? '간이식해제' : '간이식지정'}
-                                </button>
-                            ` : ''}
                             <button onclick="removePerson('${yearType}', ${index})"
                                     class="danger"
                                     style="padding: 3px 8px; font-size: 11px;">
@@ -975,10 +936,8 @@
                         if (!isWeekend) {
                             // 평일: 월목 2명, 화수금 1명
                             secondaryCount = (dayOfWeek === 1 || dayOfWeek === 4) ? 2 : 1;
-                        } else {
-                            // 주말: 2nd 1명
-                            secondaryCount = 1;
                         }
+                        // 주말: 2nd 0명 (1년차와 동일)
                     }
                     // senior는 secondaryCount = 0 유지
 
@@ -1096,16 +1055,19 @@
         }
 
         function selectPrimary(yearType, persons, schedule, day, dayOfWeek, dayName, weekNumber, isEodang, isEodangOut) {
-            // LT방 담당자가 화요일이면 우선
+            // 간당직 담당자가 화요일이면 우선 배정
             if (dayOfWeek === 2) { // 화요일
-                const ltManager = persons.find(p => p.isLTManager);
-                if (ltManager && canAssign(ltManager, schedule, day, yearType, dayOfWeek)) {
-                    return ltManager;
+                const weekDutyPersonName = data[yearType].weekDuty[weekNumber];
+                if (weekDutyPersonName) {
+                    const weekDutyPerson = persons.find(p => p.name === weekDutyPersonName);
+                    if (weekDutyPerson && canAssign(weekDutyPerson, schedule, day, yearType, dayOfWeek, weekNumber)) {
+                        return weekDutyPerson;
+                    }
                 }
             }
 
             // 후보자 필터링
-            let candidates = persons.filter(p => canAssign(p, schedule, day, yearType, dayOfWeek));
+            let candidates = persons.filter(p => canAssign(p, schedule, day, yearType, dayOfWeek, weekNumber));
 
             if (candidates.length === 0) return null;
 
@@ -1163,7 +1125,7 @@
             return topCandidates[Math.floor(Math.random() * topCandidates.length)];
         }
 
-        function canAssign(person, schedule, day, yearType, dayOfWeek) {
+        function canAssign(person, schedule, day, yearType, dayOfWeek, weekNumber) {
             // 연속 당직 체크
             if (schedule.length > 0) {
                 const yesterday = schedule[schedule.length - 1];
@@ -1172,9 +1134,11 @@
                 }
             }
 
-            // 간이식 1년차: 일월수 불가
-            if (yearType === 'year1' && person.isLiverTransplant) {
-                if (dayOfWeek === 0 || dayOfWeek === 1 || dayOfWeek === 3) { // 일, 월, 수
+            // 간당직 담당자 규칙: 해당 주의 간당직자는 일/월/수 당직 불가
+            const weekDutyPerson = data[yearType].weekDuty[weekNumber];
+            if (weekDutyPerson === person.name) {
+                // 간당직자는 일(0), 월(1), 수(3) 당직 불가
+                if (dayOfWeek === 0 || dayOfWeek === 1 || dayOfWeek === 3) {
                     return false;
                 }
             }
@@ -1278,7 +1242,7 @@
                 const total = person.primaryCount + person.secondaryCount;
                 html += `
                     <div class="stat-card">
-                        <h4>${person.name}${person.isLTManager ? ' (LT)' : ''}${person.isLiverTransplant ? ' (간이식)' : ''}</h4>
+                        <h4>${person.name}</h4>
                         <div class="stat-row">
                             <span class="stat-label">당직</span>
                             <span class="stat-value">${person.primaryCount}회</span>
@@ -1473,6 +1437,59 @@
         function loadAllSchedules() {
             showMessage('combined', '각 년차별 당직표를 먼저 생성하거나 불러온 후 통합 캘린더를 확인하세요.', 'info');
             renderCombinedCalendar();
+        }
+
+        // ===== 예시 데이터 로드 =====
+        function loadExampleData(yearType) {
+            // 예시 인원 데이터
+            const examplePersons = {
+                year1: [
+                    { name: '김민수' }, { name: '이영희' }, { name: '박철수' },
+                    { name: '정수진' }, { name: '최동현' }, { name: '한미영' }
+                ],
+                year2: [
+                    { name: '강지훈' }, { name: '윤서연' }, { name: '임태현' },
+                    { name: '송지은' }, { name: '황민호' }
+                ],
+                senior: [
+                    { name: '오승현' }, { name: '신예진' }, { name: '류현우' },
+                    { name: '홍지민' }
+                ]
+            };
+
+            // 인원 초기화 및 추가
+            data[yearType].persons = examplePersons[yearType].map(p => ({
+                name: p.name,
+                primaryCount: 0,
+                secondaryCount: 0,
+                mondayToThursdayCount: 0,
+                saturdayCount: 0,
+                sundayCount: 0,
+                fridayCount: 0,
+                eodangCount: 0,
+                eodangOutCount: 0
+            }));
+
+            // 주차별 간당직 담당자 예시 설정
+            const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+            const firstDay = new Date(currentYear, currentMonth - 1, 1).getDay();
+            const weeks = Math.ceil((firstDay + daysInMonth) / 7);
+
+            data[yearType].weekDuty = {};
+            for (let week = 1; week <= weeks; week++) {
+                // 각 주마다 돌아가며 간당직 담당자 지정
+                const personIndex = (week - 1) % data[yearType].persons.length;
+                data[yearType].weekDuty[week] = data[yearType].persons[personIndex].name;
+            }
+
+            // 스케줄 초기화
+            data[yearType].schedule = [];
+
+            // UI 갱신
+            renderPersonList(yearType);
+            renderWeekDutySelector(yearType, weeks);
+
+            showMessage(yearType, `예시 데이터가 로드되었습니다. (${data[yearType].persons.length}명, ${weeks}주)`, 'success');
         }
 
         function exportCombined() {
