@@ -125,7 +125,7 @@
         /* 인원 목록 */
         .person-list {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
             gap: 10px;
             margin-top: 10px;
         }
@@ -135,13 +135,9 @@
             border-radius: 8px;
             padding: 12px;
         }
-        .person-card.lt-manager {
+        .person-card.week-duty-person {
             border-color: #f39c12;
             background: #fef9e7;
-        }
-        .person-card.liver-transplant {
-            border-color: #e74c3c;
-            background: #fdedec;
         }
         .person-name {
             font-weight: 600;
@@ -160,16 +156,16 @@
             font-size: 11px;
             font-weight: 500;
         }
-        .badge.lt-manager {
-            background: #f39c12;
-            color: white;
-        }
-        .badge.liver-transplant {
-            background: #e74c3c;
-            color: white;
-        }
         .badge.week-duty {
             background: #3498db;
+            color: white;
+        }
+        .badge.preferred {
+            background: #27ae60;
+            color: white;
+        }
+        .badge.avoided {
+            background: #e74c3c;
             color: white;
         }
 
@@ -442,19 +438,121 @@
         .legend-color.year1 { background: #fadbd8; border: 1px solid #e74c3c; }
         .legend-color.year2 { background: #d5f5e3; border: 1px solid #27ae60; }
         .legend-color.senior { background: #e8daef; border: 1px solid #9b59b6; }
+
+        /* 미리보기 캘린더 */
+        .preview-calendar .calendar-day {
+            min-height: 60px;
+            cursor: pointer;
+        }
+        .preview-calendar .calendar-day:hover {
+            background: #fff9e6;
+        }
+        .preview-calendar .day-info {
+            font-size: 9px;
+            color: #888;
+            margin-top: 3px;
+        }
+        .preview-calendar .duty-count {
+            font-size: 10px;
+            color: #3498db;
+            font-weight: 500;
+        }
+
+        /* 편집 컨트롤 */
+        .edit-controls {
+            margin-top: 10px;
+            padding: 10px;
+            background: #fff9e6;
+            border-radius: 5px;
+            border: 1px solid #f39c12;
+            display: none;
+        }
+        .edit-controls.active {
+            display: block;
+        }
+        .edit-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+        .edit-row label {
+            font-size: 12px;
+            min-width: 80px;
+        }
+
+        /* 날짜별 설정 모달 */
+        .date-settings-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 30px rgba(0,0,0,0.3);
+            z-index: 1000;
+            min-width: 300px;
+            display: none;
+        }
+        .date-settings-popup.active {
+            display: block;
+        }
+        .popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+            display: none;
+        }
+        .popup-overlay.active {
+            display: block;
+        }
     </style>
 </head>
 <body>
-    <h1>전공의 당직표 시스템</h1>
+    <h1>전공의 당직표 시스템 (4주 단위)</h1>
 
-    <!-- 월 선택 -->
+    <!-- 시작일 및 캘린더 미리보기 -->
     <div class="container">
-        <div class="month-selector">
-            <label style="font-weight: 600;">대상 월:</label>
-            <input type="month" id="targetMonth" onchange="updateMonth()">
-            <button onclick="prevMonth()" class="secondary">◀ 이전달</button>
-            <button onclick="nextMonth()" class="secondary">다음달 ▶</button>
-            <span id="monthInfo" style="margin-left: 10px; color: #666;"></span>
+        <h3>📅 기간 설정</h3>
+        <div class="settings-row">
+            <label style="font-weight: 600;">시작 날짜:</label>
+            <input type="date" id="startDate" onchange="updateStartDate()">
+            <span id="periodInfo" style="margin-left: 10px; color: #666;"></span>
+        </div>
+        <p class="small-text">시작일부터 4주(28일) 기준으로 당직표를 생성합니다.</p>
+
+        <!-- 캘린더 미리보기 -->
+        <div class="collapsible-header" onclick="togglePreviewCalendar()">
+            <span style="font-weight: 600;">📆 캘린더 미리보기 (날짜별 당직 수 설정)</span>
+            <span id="previewToggle">▼</span>
+        </div>
+        <div id="previewCalendarSection" class="collapsible-content">
+            <p class="small-text">날짜를 클릭하면 해당 날짜의 당직/2nd당직 인원 수를 변경할 수 있습니다.</p>
+            <div id="previewCalendar" class="preview-calendar"></div>
+        </div>
+    </div>
+
+    <!-- 날짜 설정 팝업 -->
+    <div class="popup-overlay" id="popupOverlay" onclick="closeDatePopup()"></div>
+    <div class="date-settings-popup" id="dateSettingsPopup">
+        <h4 id="popupTitle">날짜 설정</h4>
+        <div class="edit-row">
+            <label>당직 인원:</label>
+            <input type="number" id="popupPrimaryCount" min="0" max="5" value="1" style="width: 60px;">
+        </div>
+        <div class="edit-row">
+            <label>2nd당직 인원:</label>
+            <input type="number" id="popupSecondaryCount" min="0" max="5" value="1" style="width: 60px;">
+        </div>
+        <div class="button-group">
+            <button class="primary" onclick="saveDateSettings()">저장</button>
+            <button class="secondary" onclick="closeDatePopup()">취소</button>
         </div>
     </div>
 
@@ -474,8 +572,8 @@
             <div class="alert alert-info">
                 <strong>1년차 당직 규칙:</strong><br>
                 • 평일: 당직 1명, 2nd 당직 (월목: 1명, 화수금: 2명)<br>
-                • 주말: 당직 1명<br>
-                • 간당직 담당자: 화요일 당직 고정, 일/월/수 당직 불가
+                • 주말/휴일: 당직 1명<br>
+                • 간당직 담당자: 화요일 당직 또는 2nd당직 배정, 일/월/수 당직 불가 (4주 기준 1명)
             </div>
 
             <!-- 인원 추가 -->
@@ -488,10 +586,10 @@
                 <div id="year1-persons" class="person-list"></div>
             </div>
 
-            <!-- 주차별 간당직 설정 -->
+            <!-- 간당직 담당자 (4주 기준 1명) -->
             <div class="settings-section">
-                <h4>주차별 간당직 담당자</h4>
-                <p class="small-text">각 주에 간당직을 담당할 사람을 지정합니다. 간당직 담당자는 해당 주에 우선 배정됩니다.</p>
+                <h4>간당직 담당자 (4주 기준 1명)</h4>
+                <p class="small-text">4주 동안 간당직을 담당할 1명을 지정합니다. 간당직자는 화요일에 당직 또는 2nd당직으로 배정됩니다.</p>
                 <div id="year1-week-duty" class="week-duty-grid"></div>
             </div>
 
@@ -516,8 +614,8 @@
             <div class="alert alert-info">
                 <strong>2년차 당직 규칙:</strong><br>
                 • 평일: 당직 1명, 2nd 당직 (월목: 2명, 화수금: 1명)<br>
-                • 주말: 당직 1명<br>
-                • 간당직 담당자: 화요일 당직 고정, 일/월/수 당직 불가
+                • 주말/휴일: 당직 1명<br>
+                • 간당직 담당자: 화요일 당직 또는 2nd당직 배정, 일/월/수 당직 불가 (4주 기준 1명)
             </div>
 
             <!-- 인원 추가 -->
@@ -530,10 +628,10 @@
                 <div id="year2-persons" class="person-list"></div>
             </div>
 
-            <!-- 주차별 간당직 설정 -->
+            <!-- 간당직 담당자 -->
             <div class="settings-section">
-                <h4>주차별 간당직 담당자</h4>
-                <p class="small-text">각 주에 간당직을 담당할 사람을 지정합니다. 간당직 담당자는 해당 주에 우선 배정됩니다.</p>
+                <h4>간당직 담당자 (4주 기준 1명)</h4>
+                <p class="small-text">4주 동안 간당직을 담당할 1명을 지정합니다. 간당직자는 화요일에 당직 또는 2nd당직으로 배정됩니다.</p>
                 <div id="year2-week-duty" class="week-duty-grid"></div>
             </div>
 
@@ -557,8 +655,8 @@
 
             <div class="alert alert-info">
                 <strong>시니어 당직 규칙:</strong><br>
-                • 평일/주말 상관없이 당직 1명<br>
-                • 간당직 담당자: 화요일 당직 고정, 일/월/수 당직 불가
+                • 평일/주말/휴일 상관없이 당직 1명<br>
+                • 간당직 담당자: 화요일 당직 또는 2nd당직 배정, 일/월/수 당직 불가 (4주 기준 1명)
             </div>
 
             <!-- 인원 추가 -->
@@ -571,10 +669,10 @@
                 <div id="senior-persons" class="person-list"></div>
             </div>
 
-            <!-- 주차별 간당직 설정 -->
+            <!-- 간당직 담당자 -->
             <div class="settings-section">
-                <h4>주차별 간당직 담당자</h4>
-                <p class="small-text">각 주에 간당직을 담당할 사람을 지정합니다. 간당직 담당자는 해당 주에 우선 배정됩니다.</p>
+                <h4>간당직 담당자 (4주 기준 1명)</h4>
+                <p class="small-text">4주 동안 간당직을 담당할 1명을 지정합니다. 간당직자는 화요일에 당직 또는 2nd당직으로 배정됩니다.</p>
                 <div id="senior-week-duty" class="week-duty-grid"></div>
             </div>
 
@@ -624,13 +722,16 @@
     <script>
         // ===== 전역 데이터 =====
         const data = {
-            year1: { persons: [], schedule: [], weekDuty: {} },
-            year2: { persons: [], schedule: [], weekDuty: {} },
-            senior: { persons: [], schedule: [], weekDuty: {} }
+            year1: { persons: [], schedule: [], weekDutyPerson: '' },
+            year2: { persons: [], schedule: [], weekDutyPerson: '' },
+            senior: { persons: [], schedule: [], weekDutyPerson: '' }
         };
 
-        let currentYear = new Date().getFullYear();
-        let currentMonth = new Date().getMonth() + 1;
+        let startDate = null;
+        let currentPopupDate = null;
+
+        // 날짜별 당직 수 설정 (기본값과 다른 경우만 저장)
+        let dateSpecificDutyCounts = {};
 
         // 대한민국 공휴일
         const HOLIDAYS = {
@@ -645,74 +746,223 @@
             '2025-05-05': '어린이날', '2025-05-06': '부처님오신날', '2025-06-06': '현충일',
             '2025-08-15': '광복절', '2025-10-03': '개천절', '2025-10-05': '추석연휴',
             '2025-10-06': '추석', '2025-10-07': '추석연휴', '2025-10-08': '대체공휴일',
-            '2025-10-09': '한글날', '2025-12-25': '크리스마스'
+            '2025-10-09': '한글날', '2025-12-25': '크리스마스',
+            '2026-01-01': '신정', '2026-02-16': '설날연휴', '2026-02-17': '설날',
+            '2026-02-18': '설날연휴', '2026-03-01': '삼일절', '2026-03-02': '대체공휴일',
+            '2026-05-05': '어린이날', '2026-05-24': '부처님오신날', '2026-06-06': '현충일',
+            '2026-08-15': '광복절', '2026-09-24': '추석연휴', '2026-09-25': '추석',
+            '2026-09-26': '추석연휴', '2026-10-03': '개천절', '2026-10-09': '한글날',
+            '2026-12-25': '크리스마스'
         };
+
+        const DAYS_OF_WEEK = ['일', '월', '화', '수', '목', '금', '토'];
 
         // ===== 초기화 =====
         document.addEventListener('DOMContentLoaded', function() {
+            // 기본 시작일: 다음 월요일
             const today = new Date();
-            currentYear = today.getFullYear();
-            currentMonth = today.getMonth() + 1;
-            document.getElementById('targetMonth').value = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
-            updateMonth();
+            const dayOfWeek = today.getDay();
+            const daysUntilMonday = dayOfWeek === 0 ? 1 : (8 - dayOfWeek) % 7 || 7;
+            const nextMonday = new Date(today);
+            nextMonday.setDate(today.getDate() + daysUntilMonday);
+
+            document.getElementById('startDate').value = formatDate(nextMonday);
+            updateStartDate();
         });
 
-        // ===== 월 관련 함수 =====
-        function updateMonth() {
-            const input = document.getElementById('targetMonth');
-            if (input.value) {
-                const [year, month] = input.value.split('-');
-                currentYear = parseInt(year);
-                currentMonth = parseInt(month);
-            }
+        // ===== 날짜 유틸리티 =====
+        function formatDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
 
-            const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
-            const firstDay = new Date(currentYear, currentMonth - 1, 1).getDay();
+        function parseDate(dateStr) {
+            const [year, month, day] = dateStr.split('-').map(Number);
+            return new Date(year, month - 1, day);
+        }
 
-            // 주 수 계산
-            const totalDays = firstDay + daysInMonth;
-            const weeks = Math.ceil(totalDays / 7);
+        function getHolidayName(dateStr) {
+            return HOLIDAYS[dateStr] || null;
+        }
 
-            document.getElementById('monthInfo').textContent =
-                `${currentYear}년 ${currentMonth}월 (${daysInMonth}일, ${weeks}주)`;
+        function isHoliday(dateStr) {
+            return !!HOLIDAYS[dateStr];
+        }
 
-            // 주차별 간당직 UI 업데이트
+        function isWeekend(date) {
+            const dayOfWeek = date.getDay();
+            return dayOfWeek === 0 || dayOfWeek === 6;
+        }
+
+        // ===== 시작일 설정 =====
+        function updateStartDate() {
+            const input = document.getElementById('startDate');
+            if (!input.value) return;
+
+            startDate = parseDate(input.value);
+            const endDate = new Date(startDate);
+            endDate.setDate(startDate.getDate() + 27); // 4주 = 28일
+
+            document.getElementById('periodInfo').textContent =
+                `${formatDate(startDate)} ~ ${formatDate(endDate)} (4주, 28일)`;
+
+            renderPreviewCalendar();
             ['year1', 'year2', 'senior'].forEach(yearType => {
-                renderWeekDutySelector(yearType, weeks);
+                renderWeekDutySelector(yearType);
             });
         }
 
-        function prevMonth() {
-            currentMonth--;
-            if (currentMonth < 1) {
-                currentMonth = 12;
-                currentYear--;
+        // ===== 미리보기 캘린더 =====
+        function togglePreviewCalendar() {
+            const section = document.getElementById('previewCalendarSection');
+            const toggle = document.getElementById('previewToggle');
+            if (section.classList.contains('open')) {
+                section.classList.remove('open');
+                toggle.textContent = '▼';
+            } else {
+                section.classList.add('open');
+                toggle.textContent = '▲';
             }
-            document.getElementById('targetMonth').value = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
-            updateMonth();
         }
 
-        function nextMonth() {
-            currentMonth++;
-            if (currentMonth > 12) {
-                currentMonth = 1;
-                currentYear++;
+        function renderPreviewCalendar() {
+            if (!startDate) return;
+
+            const container = document.getElementById('previewCalendar');
+            const endDate = new Date(startDate);
+            endDate.setDate(startDate.getDate() + 27);
+
+            // 시작일의 해당 월 첫째날
+            const calendarStart = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+            // 끝일의 해당 월 마지막날
+            const calendarEnd = new Date(endDate.getFullYear(), endDate.getMonth() + 1, 0);
+
+            let html = '<div class="calendar">';
+
+            // 요일 헤더
+            DAYS_OF_WEEK.forEach((name, i) => {
+                let headerClass = 'calendar-day-header';
+                if (i === 0) headerClass += ' sunday';
+                if (i === 6) headerClass += ' saturday';
+                html += `<div class="${headerClass}">${name}</div>`;
+            });
+
+            // 첫째 주 빈 칸
+            const firstDayOfWeek = calendarStart.getDay();
+            for (let i = 0; i < firstDayOfWeek; i++) {
+                html += '<div class="calendar-day empty"></div>';
             }
-            document.getElementById('targetMonth').value = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
-            updateMonth();
+
+            // 날짜들
+            const current = new Date(calendarStart);
+            while (current <= calendarEnd) {
+                const dateStr = formatDate(current);
+                const dayOfWeek = current.getDay();
+                const holidayName = getHolidayName(dateStr);
+                const isInRange = current >= startDate && current <= endDate;
+
+                let dayClass = 'calendar-day';
+                if (dayOfWeek === 0) dayClass += ' sunday';
+                if (dayOfWeek === 6) dayClass += ' saturday';
+                if (holidayName) dayClass += ' holiday';
+                if (!isInRange) dayClass += ' empty';
+
+                const dutyInfo = getDutyCountsForDate(dateStr, dayOfWeek);
+
+                html += `<div class="${dayClass}" onclick="openDatePopup('${dateStr}')" style="cursor: ${isInRange ? 'pointer' : 'default'}">`;
+                html += `<div class="day-number">${current.getDate()}</div>`;
+
+                if (holidayName) {
+                    html += `<div class="holiday-name">${holidayName}</div>`;
+                }
+
+                if (isInRange) {
+                    const weekNum = Math.floor((current - startDate) / (7 * 24 * 60 * 60 * 1000)) + 1;
+                    html += `<div class="day-info">${weekNum}주차</div>`;
+                    html += `<div class="duty-count">당직:${dutyInfo.primary} 2nd:${dutyInfo.secondary}</div>`;
+                }
+
+                html += '</div>';
+
+                current.setDate(current.getDate() + 1);
+            }
+
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function getDutyCountsForDate(dateStr, dayOfWeek) {
+            // 날짜별 설정이 있으면 사용
+            if (dateSpecificDutyCounts[dateStr]) {
+                return dateSpecificDutyCounts[dateStr];
+            }
+
+            // 기본값: 주말/휴일은 당직 1명만
+            if (dayOfWeek === 0 || dayOfWeek === 6 || isHoliday(dateStr)) {
+                return { primary: 1, secondary: 0 };
+            }
+
+            // 평일 기본값
+            return { primary: 1, secondary: 1 };
+        }
+
+        function openDatePopup(dateStr) {
+            if (!startDate) return;
+
+            const date = parseDate(dateStr);
+            const endDate = new Date(startDate);
+            endDate.setDate(startDate.getDate() + 27);
+
+            if (date < startDate || date > endDate) return;
+
+            currentPopupDate = dateStr;
+            const dayOfWeek = date.getDay();
+            const dutyInfo = getDutyCountsForDate(dateStr, dayOfWeek);
+            const holidayName = getHolidayName(dateStr);
+
+            document.getElementById('popupTitle').textContent =
+                `${dateStr} (${DAYS_OF_WEEK[dayOfWeek]})${holidayName ? ' - ' + holidayName : ''}`;
+            document.getElementById('popupPrimaryCount').value = dutyInfo.primary;
+            document.getElementById('popupSecondaryCount').value = dutyInfo.secondary;
+
+            document.getElementById('popupOverlay').classList.add('active');
+            document.getElementById('dateSettingsPopup').classList.add('active');
+        }
+
+        function closeDatePopup() {
+            document.getElementById('popupOverlay').classList.remove('active');
+            document.getElementById('dateSettingsPopup').classList.remove('active');
+            currentPopupDate = null;
+        }
+
+        function saveDateSettings() {
+            if (!currentPopupDate) return;
+
+            const primary = parseInt(document.getElementById('popupPrimaryCount').value) || 0;
+            const secondary = parseInt(document.getElementById('popupSecondaryCount').value) || 0;
+
+            if (primary === 0 && secondary === 0) {
+                // 둘 다 0이면 설정 삭제 (당직 없음)
+                dateSpecificDutyCounts[currentPopupDate] = { primary: 0, secondary: 0 };
+            } else {
+                dateSpecificDutyCounts[currentPopupDate] = { primary, secondary };
+            }
+
+            renderPreviewCalendar();
+            closeDatePopup();
+            showMessage('year1', '날짜별 당직 수가 설정되었습니다.', 'success');
         }
 
         // ===== 탭 전환 =====
         function switchTab(tabName) {
-            // 모든 탭 비활성화
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
 
-            // 선택된 탭 활성화
             document.querySelector(`.tab.${tabName}`).classList.add('active');
             document.getElementById(`tab-${tabName}`).classList.add('active');
 
-            // 통합 캘린더면 렌더링
             if (tabName === 'combined') {
                 renderCombinedCalendar();
             }
@@ -721,14 +971,13 @@
         // ===== 인원 관리 =====
         function addPerson(yearType) {
             const nameInput = document.getElementById(`${yearType}-name`);
-
             const name = nameInput.value.trim();
+
             if (!name) {
                 showMessage(yearType, '이름을 입력해주세요.', 'error');
                 return;
             }
 
-            // 중복 확인
             if (data[yearType].persons.find(p => p.name === name)) {
                 showMessage(yearType, '이미 등록된 이름입니다.', 'error');
                 return;
@@ -736,18 +985,14 @@
 
             const person = {
                 name: name,
+                preferredDays: [],  // 선호 요일: [0-6]
+                avoidedDays: [],    // 기피 요일: [0-6]
                 primaryCount: 0,
                 secondaryCount: 0,
-                mondayToThursdayCount: 0, // 월~목 당직
-                saturdayCount: 0,
-                sundayCount: 0,
-                fridayCount: 0,
-                eodangCount: 0, // 어당 (일월화수목)
-                eodangOutCount: 0 // 어당아웃 (월~목,일)
+                tuesdayCount: 0     // 화요일 당직/2nd 횟수
             };
 
             data[yearType].persons.push(person);
-
             nameInput.value = '';
 
             renderPersonList(yearType);
@@ -764,6 +1009,32 @@
             }
         }
 
+        function toggleEditPerson(yearType, index) {
+            const editDiv = document.getElementById(`edit-${yearType}-${index}`);
+            if (editDiv.classList.contains('active')) {
+                editDiv.classList.remove('active');
+            } else {
+                // 다른 편집창 닫기
+                document.querySelectorAll('.edit-controls').forEach(el => el.classList.remove('active'));
+                editDiv.classList.add('active');
+            }
+        }
+
+        function savePersonEdit(yearType, index) {
+            const person = data[yearType].persons[index];
+
+            // 선호 요일 저장
+            const preferredChecks = document.querySelectorAll(`.preferred-day-${yearType}-${index}:checked`);
+            person.preferredDays = Array.from(preferredChecks).map(cb => parseInt(cb.value));
+
+            // 기피 요일 저장
+            const avoidedChecks = document.querySelectorAll(`.avoided-day-${yearType}-${index}:checked`);
+            person.avoidedDays = Array.from(avoidedChecks).map(cb => parseInt(cb.value));
+
+            renderPersonList(yearType);
+            showMessage(yearType, `${person.name}님의 정보가 수정되었습니다.`, 'success');
+        }
+
         function renderPersonList(yearType) {
             const container = document.getElementById(`${yearType}-persons`);
             const persons = data[yearType].persons;
@@ -773,33 +1044,71 @@
                 return;
             }
 
-            // 이번 달 간당직 담당 주차 확인
-            const weekDuty = data[yearType].weekDuty || {};
-            const weekDutyInfo = {};
-            Object.entries(weekDuty).forEach(([week, name]) => {
-                if (name) {
-                    if (!weekDutyInfo[name]) weekDutyInfo[name] = [];
-                    weekDutyInfo[name].push(week);
-                }
-            });
+            const weekDutyPerson = data[yearType].weekDutyPerson;
 
             let html = '';
             persons.forEach((person, index) => {
-                const hasWeekDuty = weekDutyInfo[person.name];
-                const weekDutyClass = hasWeekDuty ? 'lt-manager' : '';
+                const isWeekDuty = weekDutyPerson === person.name;
+                const weekDutyClass = isWeekDuty ? 'week-duty-person' : '';
+
+                // 배지 생성
+                let badges = '';
+                if (isWeekDuty) {
+                    badges += `<span class="badge week-duty">간당직</span>`;
+                }
+                if (person.preferredDays && person.preferredDays.length > 0) {
+                    const days = person.preferredDays.map(d => DAYS_OF_WEEK[d]).join(',');
+                    badges += `<span class="badge preferred">선호: ${days}</span>`;
+                }
+                if (person.avoidedDays && person.avoidedDays.length > 0) {
+                    const days = person.avoidedDays.map(d => DAYS_OF_WEEK[d]).join(',');
+                    badges += `<span class="badge avoided">기피: ${days}</span>`;
+                }
 
                 html += `
                     <div class="person-card ${weekDutyClass}">
                         <div class="person-name">${person.name}</div>
-                        <div class="person-badges">
-                            ${hasWeekDuty ? `<span class="badge week-duty">간당직: ${weekDutyInfo[person.name].join(', ')}주차</span>` : ''}
-                        </div>
+                        <div class="person-badges">${badges}</div>
                         <div style="display: flex; gap: 5px; flex-wrap: wrap;">
+                            <button onclick="toggleEditPerson('${yearType}', ${index})"
+                                    class="secondary"
+                                    style="padding: 3px 8px; font-size: 11px;">
+                                편집
+                            </button>
                             <button onclick="removePerson('${yearType}', ${index})"
                                     class="danger"
                                     style="padding: 3px 8px; font-size: 11px;">
                                 삭제
                             </button>
+                        </div>
+
+                        <!-- 편집 컨트롤 -->
+                        <div class="edit-controls" id="edit-${yearType}-${index}">
+                            <div class="edit-row">
+                                <label>선호 요일:</label>
+                                <div class="checkbox-group">
+                                    ${DAYS_OF_WEEK.map((day, i) => `
+                                        <label class="checkbox-item">
+                                            <input type="checkbox" class="preferred-day-${yearType}-${index}" value="${i}"
+                                                ${person.preferredDays && person.preferredDays.includes(i) ? 'checked' : ''}>
+                                            ${day}
+                                        </label>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            <div class="edit-row">
+                                <label>기피 요일:</label>
+                                <div class="checkbox-group">
+                                    ${DAYS_OF_WEEK.map((day, i) => `
+                                        <label class="checkbox-item">
+                                            <input type="checkbox" class="avoided-day-${yearType}-${index}" value="${i}"
+                                                ${person.avoidedDays && person.avoidedDays.includes(i) ? 'checked' : ''}>
+                                            ${day}
+                                        </label>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            <button onclick="savePersonEdit('${yearType}', ${index})" class="success" style="padding: 5px 10px; font-size: 12px;">저장</button>
                         </div>
                     </div>
                 `;
@@ -808,16 +1117,10 @@
             container.innerHTML = html;
         }
 
-        // ===== 주차별 간당직 =====
-        function renderWeekDutySelector(yearType, weeks) {
+        // ===== 간당직 담당자 (4주 기준 1명) =====
+        function renderWeekDutySelector(yearType) {
             const container = document.getElementById(`${yearType}-week-duty`);
             if (!container) return;
-
-            if (!weeks) {
-                const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
-                const firstDay = new Date(currentYear, currentMonth - 1, 1).getDay();
-                weeks = Math.ceil((firstDay + daysInMonth) / 7);
-            }
 
             const persons = data[yearType].persons;
 
@@ -826,33 +1129,38 @@
                 return;
             }
 
-            let html = '';
-            for (let week = 1; week <= weeks; week++) {
-                const currentValue = data[yearType].weekDuty[week] || '';
-                html += `
-                    <div class="week-duty-item">
-                        <label>${week}주차 간당직</label>
-                        <select onchange="setWeekDuty('${yearType}', ${week}, this.value)" style="width: 100%;">
-                            <option value="">선택안함</option>
-                            ${persons.map(p => `
-                                <option value="${p.name}" ${currentValue === p.name ? 'selected' : ''}>
-                                    ${p.name}${p.isLTManager ? ' (LT)' : ''}
-                                </option>
-                            `).join('')}
-                        </select>
-                    </div>
-                `;
-            }
+            const currentValue = data[yearType].weekDutyPerson || '';
+
+            let html = `
+                <div class="week-duty-item">
+                    <label>간당직 담당자 (4주 전체)</label>
+                    <select onchange="setWeekDutyPerson('${yearType}', this.value)" style="width: 100%;">
+                        <option value="">선택안함</option>
+                        ${persons.map(p => `
+                            <option value="${p.name}" ${currentValue === p.name ? 'selected' : ''}>
+                                ${p.name}
+                            </option>
+                        `).join('')}
+                    </select>
+                    <p class="small-text" style="margin-top: 5px;">선택된 사람은 화요일마다 당직 또는 2nd당직으로 배정됩니다.</p>
+                </div>
+            `;
 
             container.innerHTML = html;
         }
 
-        function setWeekDuty(yearType, week, name) {
-            data[yearType].weekDuty[week] = name;
+        function setWeekDutyPerson(yearType, name) {
+            data[yearType].weekDutyPerson = name;
+            renderPersonList(yearType);
         }
 
         // ===== 당직표 생성 =====
         function generateSchedule(yearType) {
+            if (!startDate) {
+                showMessage(yearType, '시작 날짜를 먼저 선택해주세요.', 'error');
+                return;
+            }
+
             const persons = data[yearType].persons;
 
             if (persons.length < 2) {
@@ -864,20 +1172,14 @@
             persons.forEach(p => {
                 p.primaryCount = 0;
                 p.secondaryCount = 0;
-                p.mondayToThursdayCount = 0;
-                p.saturdayCount = 0;
-                p.sundayCount = 0;
-                p.fridayCount = 0;
-                p.eodangCount = 0;
-                p.eodangOutCount = 0;
+                p.tuesdayCount = 0;
             });
 
             const schedule = [];
-            const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+            const weekDutyPerson = data[yearType].weekDutyPerson;
 
             let attempts = 0;
-            const maxAttempts = 200;
-            let success = false;
+            const maxAttempts = 500;
             let bestSchedule = null;
             let bestScore = -Infinity;
 
@@ -887,130 +1189,100 @@
                 persons.forEach(p => {
                     p.primaryCount = 0;
                     p.secondaryCount = 0;
-                    p.mondayToThursdayCount = 0;
-                    p.saturdayCount = 0;
-                    p.sundayCount = 0;
-                    p.fridayCount = 0;
-                    p.eodangCount = 0;
-                    p.eodangOutCount = 0;
+                    p.tuesdayCount = 0;
                 });
 
-                let currentSuccess = true;
+                let success = true;
 
-                for (let day = 1; day <= daysInMonth && currentSuccess; day++) {
-                    const date = new Date(currentYear, currentMonth - 1, day);
-                    const dayOfWeek = date.getDay(); // 0=일, 1=월, ..., 6=토
-                    const dayName = ['일', '월', '화', '수', '목', '금', '토'][dayOfWeek];
-                    const dateStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                    const isHoliday = HOLIDAYS[dateStr];
-                    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-                    const weekNumber = getWeekNumber(currentYear, currentMonth, day);
+                // 28일 (4주) 생성
+                for (let day = 0; day < 28 && success; day++) {
+                    const currentDate = new Date(startDate);
+                    currentDate.setDate(startDate.getDate() + day);
+                    const dateStr = formatDate(currentDate);
+                    const dayOfWeek = currentDate.getDay();
+                    const dayName = DAYS_OF_WEEK[dayOfWeek];
+                    const holidayName = HOLIDAYS[dateStr];
+                    const weekNumber = Math.floor(day / 7) + 1;
 
-                    // 어당 여부 (일월화수목)
-                    const isEodang = dayOfWeek >= 0 && dayOfWeek <= 4;
-                    // 어당아웃 여부 (월~목, 일)
-                    const isEodangOut = (dayOfWeek >= 1 && dayOfWeek <= 4) || dayOfWeek === 0;
+                    // 당직 인원 수 결정
+                    const dutyInfo = getDutyCountsForDate(dateStr, dayOfWeek);
+                    let primaryCount = dutyInfo.primary;
+                    let secondaryCount = dutyInfo.secondary;
+
+                    // yearType에 따른 2nd 당직 수 조정 (기본값인 경우에만)
+                    if (!dateSpecificDutyCounts[dateStr] && dayOfWeek >= 1 && dayOfWeek <= 5 && !holidayName) {
+                        if (yearType === 'year1') {
+                            secondaryCount = (dayOfWeek === 1 || dayOfWeek === 4) ? 1 : 2;
+                        } else if (yearType === 'year2') {
+                            secondaryCount = (dayOfWeek === 1 || dayOfWeek === 4) ? 2 : 1;
+                        } else {
+                            secondaryCount = 0;
+                        }
+                    }
 
                     const daySchedule = {
-                        day: day,
+                        day: day + 1,
                         date: dateStr,
                         dayOfWeek: dayOfWeek,
                         dayName: dayName,
-                        isWeekend: isWeekend,
-                        isHoliday: isHoliday,
+                        isWeekend: dayOfWeek === 0 || dayOfWeek === 6,
+                        isHoliday: holidayName,
                         weekNumber: weekNumber,
-                        primary: null,
+                        primaries: [],
                         secondaries: []
                     };
-
-                    // 당직 인원 수 결정
-                    let primaryCount = 1;
-                    let secondaryCount = 0;
-
-                    if (yearType === 'year1') {
-                        if (!isWeekend) {
-                            // 평일: 월목 1명, 화수금 2명
-                            secondaryCount = (dayOfWeek === 1 || dayOfWeek === 4) ? 1 : 2;
-                        }
-                    } else if (yearType === 'year2') {
-                        if (!isWeekend) {
-                            // 평일: 월목 2명, 화수금 1명
-                            secondaryCount = (dayOfWeek === 1 || dayOfWeek === 4) ? 2 : 1;
-                        }
-                        // 주말: 2nd 0명 (1년차와 동일)
-                    }
-                    // senior는 secondaryCount = 0 유지
 
                     const assignedToday = [];
 
                     // 당직자 선택
-                    const primary = selectPrimary(yearType, persons, schedule, day, dayOfWeek, dayName, weekNumber, isEodang, isEodangOut);
-                    if (!primary) {
-                        currentSuccess = false;
-                        break;
+                    for (let i = 0; i < primaryCount; i++) {
+                        const primary = selectPrimary(yearType, persons, schedule, day, dayOfWeek, weekDutyPerson, assignedToday);
+                        if (!primary) {
+                            success = false;
+                            break;
+                        }
+                        daySchedule.primaries.push(primary.name);
+                        assignedToday.push(primary);
+                        primary.primaryCount++;
+                        if (dayOfWeek === 2) primary.tuesdayCount++;
                     }
 
-                    daySchedule.primary = primary.name;
-                    assignedToday.push(primary);
-                    primary.primaryCount++;
-
-                    // 요일별 카운트
-                    if (dayOfWeek >= 1 && dayOfWeek <= 4) {
-                        primary.mondayToThursdayCount++;
-                    } else if (dayOfWeek === 5) {
-                        primary.fridayCount++;
-                    } else if (dayOfWeek === 6) {
-                        primary.saturdayCount++;
-                    } else if (dayOfWeek === 0) {
-                        primary.sundayCount++;
-                    }
-
-                    // 어당/어당아웃 카운트
-                    if (isEodang) primary.eodangCount++;
-                    if (isEodangOut) primary.eodangOutCount++;
+                    if (!success) break;
 
                     // 2nd 당직자 선택
                     for (let i = 0; i < secondaryCount; i++) {
-                        const secondary = selectSecondary(yearType, persons, schedule, day, dayOfWeek, assignedToday);
+                        const secondary = selectSecondary(yearType, persons, schedule, day, dayOfWeek, weekDutyPerson, assignedToday);
                         if (!secondary) {
-                            currentSuccess = false;
+                            success = false;
                             break;
                         }
-
                         daySchedule.secondaries.push(secondary.name);
                         assignedToday.push(secondary);
                         secondary.secondaryCount++;
+                        if (dayOfWeek === 2) secondary.tuesdayCount++;
                     }
 
-                    if (currentSuccess) {
+                    if (success) {
                         schedule.push(daySchedule);
                     }
                 }
 
-                if (currentSuccess) {
-                    // 균등 점수 계산
+                if (success) {
                     const score = calculateBalanceScore(persons);
                     if (score > bestScore) {
                         bestScore = score;
                         bestSchedule = JSON.parse(JSON.stringify(schedule));
-                        // 카운트도 저장
                         bestSchedule.personCounts = persons.map(p => ({
                             name: p.name,
                             primaryCount: p.primaryCount,
                             secondaryCount: p.secondaryCount,
-                            mondayToThursdayCount: p.mondayToThursdayCount,
-                            saturdayCount: p.saturdayCount,
-                            sundayCount: p.sundayCount,
-                            fridayCount: p.fridayCount,
-                            eodangCount: p.eodangCount,
-                            eodangOutCount: p.eodangOutCount
+                            tuesdayCount: p.tuesdayCount
                         }));
                     }
-                    success = true;
                 }
             }
 
-            if (!success || !bestSchedule) {
+            if (!bestSchedule) {
                 showMessage(yearType, `당직표 생성에 실패했습니다. (${attempts}번 시도)`, 'error');
                 return;
             }
@@ -1023,12 +1295,7 @@
                     if (person) {
                         person.primaryCount = pc.primaryCount;
                         person.secondaryCount = pc.secondaryCount;
-                        person.mondayToThursdayCount = pc.mondayToThursdayCount;
-                        person.saturdayCount = pc.saturdayCount;
-                        person.sundayCount = pc.sundayCount;
-                        person.fridayCount = pc.fridayCount;
-                        person.eodangCount = pc.eodangCount;
-                        person.eodangOutCount = pc.eodangOutCount;
+                        person.tuesdayCount = pc.tuesdayCount;
                     }
                 });
             }
@@ -1039,85 +1306,99 @@
         }
 
         function calculateBalanceScore(persons) {
-            // 표준편차가 낮을수록 균등함
-            const metrics = ['primaryCount', 'eodangCount', 'eodangOutCount', 'mondayToThursdayCount', 'saturdayCount', 'sundayCount'];
+            const metrics = ['primaryCount', 'secondaryCount'];
             let totalScore = 0;
 
             metrics.forEach(metric => {
                 const values = persons.map(p => p[metric]);
                 const avg = values.reduce((a, b) => a + b, 0) / values.length;
                 const variance = values.reduce((sum, v) => sum + Math.pow(v - avg, 2), 0) / values.length;
-                const stdDev = Math.sqrt(variance);
-                totalScore -= stdDev; // 표준편차가 낮을수록 점수 높음
+                totalScore -= Math.sqrt(variance);
             });
 
             return totalScore;
         }
 
-        function selectPrimary(yearType, persons, schedule, day, dayOfWeek, dayName, weekNumber, isEodang, isEodangOut) {
-            // 간당직 담당자가 화요일이면 우선 배정
-            if (dayOfWeek === 2) { // 화요일
-                const weekDutyPersonName = data[yearType].weekDuty[weekNumber];
-                if (weekDutyPersonName) {
-                    const weekDutyPerson = persons.find(p => p.name === weekDutyPersonName);
-                    if (weekDutyPerson && canAssign(weekDutyPerson, schedule, day, yearType, dayOfWeek, weekNumber)) {
-                        return weekDutyPerson;
-                    }
+        function selectPrimary(yearType, persons, schedule, day, dayOfWeek, weekDutyPerson, assignedToday) {
+            // 간당직자 - 화요일에 우선 배정
+            if (dayOfWeek === 2 && weekDutyPerson) {
+                const weekDutyPersonObj = persons.find(p => p.name === weekDutyPerson);
+                if (weekDutyPersonObj && !assignedToday.includes(weekDutyPersonObj) &&
+                    canAssign(weekDutyPersonObj, schedule, day, dayOfWeek)) {
+                    return weekDutyPersonObj;
                 }
             }
 
             // 후보자 필터링
-            let candidates = persons.filter(p => canAssign(p, schedule, day, yearType, dayOfWeek, weekNumber));
+            let candidates = persons.filter(p =>
+                !assignedToday.includes(p) &&
+                canAssign(p, schedule, day, dayOfWeek) &&
+                canAssignPrimary(p, dayOfWeek, weekDutyPerson)
+            );
 
             if (candidates.length === 0) return null;
 
-            // 정렬: 어당/어당아웃/총당직 횟수 균등하게
+            // 선호 요일인 사람 우선
+            const preferredCandidates = candidates.filter(p =>
+                p.preferredDays && p.preferredDays.includes(dayOfWeek)
+            );
+            if (preferredCandidates.length > 0) {
+                candidates = preferredCandidates;
+            }
+
+            // 기피 요일인 사람 제외 (가능하면)
+            const nonAvoidedCandidates = candidates.filter(p =>
+                !p.avoidedDays || !p.avoidedDays.includes(dayOfWeek)
+            );
+            if (nonAvoidedCandidates.length > 0) {
+                candidates = nonAvoidedCandidates;
+            }
+
+            // 당직 횟수가 적은 순으로 정렬
             candidates.sort((a, b) => {
-                // 어당아웃 횟수
-                if (isEodangOut) {
-                    if (a.eodangOutCount !== b.eodangOutCount) {
-                        return a.eodangOutCount - b.eodangOutCount;
-                    }
-                }
-                // 어당 횟수
-                if (isEodang) {
-                    if (a.eodangCount !== b.eodangCount) {
-                        return a.eodangCount - b.eodangCount;
-                    }
-                }
-                // 요일별 횟수
-                if (dayOfWeek >= 1 && dayOfWeek <= 4) {
-                    if (a.mondayToThursdayCount !== b.mondayToThursdayCount) {
-                        return a.mondayToThursdayCount - b.mondayToThursdayCount;
-                    }
-                } else if (dayOfWeek === 6) {
-                    if (a.saturdayCount !== b.saturdayCount) {
-                        return a.saturdayCount - b.saturdayCount;
-                    }
-                } else if (dayOfWeek === 0) {
-                    if (a.sundayCount !== b.sundayCount) {
-                        return a.sundayCount - b.sundayCount;
-                    }
-                }
-                // 총 당직 횟수
-                return a.primaryCount - b.primaryCount;
+                const totalA = a.primaryCount + a.secondaryCount * 0.5;
+                const totalB = b.primaryCount + b.secondaryCount * 0.5;
+                return totalA - totalB;
             });
 
-            // 상위 후보 중 랜덤 선택 (균등 배분을 위해)
             const minCount = candidates[0].primaryCount;
             const topCandidates = candidates.filter(c => c.primaryCount <= minCount + 1);
             return topCandidates[Math.floor(Math.random() * topCandidates.length)];
         }
 
-        function selectSecondary(yearType, persons, schedule, day, dayOfWeek, assignedToday) {
+        function selectSecondary(yearType, persons, schedule, day, dayOfWeek, weekDutyPerson, assignedToday) {
+            // 간당직자 - 화요일에 당직이 아니면 2nd로 배정
+            if (dayOfWeek === 2 && weekDutyPerson) {
+                const weekDutyPersonObj = persons.find(p => p.name === weekDutyPerson);
+                if (weekDutyPersonObj && !assignedToday.includes(weekDutyPersonObj) &&
+                    canAssign(weekDutyPersonObj, schedule, day, dayOfWeek)) {
+                    return weekDutyPersonObj;
+                }
+            }
+
             let candidates = persons.filter(p =>
                 !assignedToday.includes(p) &&
-                canAssignSecondary(p, schedule, day)
+                canAssignSecondary(p, schedule, day, dayOfWeek)
             );
 
             if (candidates.length === 0) return null;
 
-            // 2nd 횟수가 적은 순으로 정렬
+            // 선호 요일인 사람 우선
+            const preferredCandidates = candidates.filter(p =>
+                p.preferredDays && p.preferredDays.includes(dayOfWeek)
+            );
+            if (preferredCandidates.length > 0) {
+                candidates = preferredCandidates;
+            }
+
+            // 기피 요일인 사람 제외 (가능하면)
+            const nonAvoidedCandidates = candidates.filter(p =>
+                !p.avoidedDays || !p.avoidedDays.includes(dayOfWeek)
+            );
+            if (nonAvoidedCandidates.length > 0) {
+                candidates = nonAvoidedCandidates;
+            }
+
             candidates.sort((a, b) => a.secondaryCount - b.secondaryCount);
 
             const minCount = candidates[0].secondaryCount;
@@ -1125,41 +1406,29 @@
             return topCandidates[Math.floor(Math.random() * topCandidates.length)];
         }
 
-        function canAssign(person, schedule, day, yearType, dayOfWeek, weekNumber) {
+        function canAssign(person, schedule, day, dayOfWeek) {
             // 연속 당직 체크
             if (schedule.length > 0) {
                 const yesterday = schedule[schedule.length - 1];
-                if (yesterday.primary === person.name || yesterday.secondaries.includes(person.name)) {
+                if (yesterday.primaries.includes(person.name) || yesterday.secondaries.includes(person.name)) {
                     return false;
                 }
             }
+            return true;
+        }
 
-            // 간당직 담당자 규칙: 해당 주의 간당직자는 일/월/수 당직 불가
-            const weekDutyPerson = data[yearType].weekDuty[weekNumber];
-            if (weekDutyPerson === person.name) {
-                // 간당직자는 일(0), 월(1), 수(3) 당직 불가
+        function canAssignPrimary(person, dayOfWeek, weekDutyPerson) {
+            // 간당직자는 일(0), 월(1), 수(3) 당직 불가
+            if (person.name === weekDutyPerson) {
                 if (dayOfWeek === 0 || dayOfWeek === 1 || dayOfWeek === 3) {
                     return false;
                 }
             }
-
             return true;
         }
 
-        function canAssignSecondary(person, schedule, day) {
-            // 연속 근무 체크
-            if (schedule.length > 0) {
-                const yesterday = schedule[schedule.length - 1];
-                if (yesterday.primary === person.name || yesterday.secondaries.includes(person.name)) {
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        function getWeekNumber(year, month, day) {
-            const firstDay = new Date(year, month - 1, 1).getDay();
-            return Math.ceil((firstDay + day) / 7);
+        function canAssignSecondary(person, schedule, day, dayOfWeek) {
+            return canAssign(person, schedule, day, dayOfWeek);
         }
 
         // ===== 캘린더 렌더링 =====
@@ -1172,14 +1441,18 @@
                 return;
             }
 
-            const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
-            const firstDayOfWeek = new Date(currentYear, currentMonth - 1, 1).getDay();
+            // 첫 번째 날짜 찾기
+            const firstDate = parseDate(schedule[0].date);
+            const lastDate = parseDate(schedule[schedule.length - 1].date);
+
+            // 해당 월의 첫날부터 시작
+            const calendarStart = new Date(firstDate.getFullYear(), firstDate.getMonth(), 1);
+            const calendarEnd = new Date(lastDate.getFullYear(), lastDate.getMonth() + 1, 0);
 
             let html = '<div class="calendar">';
 
             // 요일 헤더
-            const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
-            dayNames.forEach((name, i) => {
+            DAYS_OF_WEEK.forEach((name, i) => {
                 let headerClass = 'calendar-day-header';
                 if (i === 0) headerClass += ' sunday';
                 if (i === 6) headerClass += ' saturday';
@@ -1187,39 +1460,43 @@
             });
 
             // 빈 칸
+            const firstDayOfWeek = calendarStart.getDay();
             for (let i = 0; i < firstDayOfWeek; i++) {
                 html += '<div class="calendar-day empty"></div>';
             }
 
             // 날짜
-            for (let day = 1; day <= daysInMonth; day++) {
-                const date = new Date(currentYear, currentMonth - 1, day);
-                const dayOfWeek = date.getDay();
-                const dateStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                const isHoliday = HOLIDAYS[dateStr];
+            const current = new Date(calendarStart);
+            while (current <= calendarEnd) {
+                const dateStr = formatDate(current);
+                const dayOfWeek = current.getDay();
+                const holidayName = HOLIDAYS[dateStr];
+                const daySchedule = schedule.find(s => s.date === dateStr);
 
                 let dayClass = 'calendar-day';
                 if (dayOfWeek === 0) dayClass += ' sunday';
                 if (dayOfWeek === 6) dayClass += ' saturday';
-                if (isHoliday) dayClass += ' holiday';
-
-                const daySchedule = schedule.find(s => s.day === day);
+                if (holidayName) dayClass += ' holiday';
+                if (!daySchedule) dayClass += ' empty';
 
                 html += `<div class="${dayClass}">`;
-                html += `<div class="day-number">${day}</div>`;
+                html += `<div class="day-number">${current.getDate()}</div>`;
 
-                if (isHoliday) {
-                    html += `<div class="holiday-name">${isHoliday}</div>`;
+                if (holidayName) {
+                    html += `<div class="holiday-name">${holidayName}</div>`;
                 }
 
                 if (daySchedule) {
-                    html += `<div class="duty-item ${yearType} primary">당직: ${daySchedule.primary}</div>`;
-                    daySchedule.secondaries.forEach(s => {
-                        html += `<div class="duty-item ${yearType} secondary">2nd: ${s}</div>`;
+                    daySchedule.primaries.forEach(name => {
+                        html += `<div class="duty-item ${yearType} primary">당직: ${name}</div>`;
+                    });
+                    daySchedule.secondaries.forEach(name => {
+                        html += `<div class="duty-item ${yearType} secondary">2nd: ${name}</div>`;
                     });
                 }
 
                 html += '</div>';
+                current.setDate(current.getDate() + 1);
             }
 
             html += '</div>';
@@ -1236,7 +1513,7 @@
                 return;
             }
 
-            let html = '<h3>통계</h3><div class="stats-grid">';
+            let html = '<h3>통계 (4주 기준)</h3><div class="stats-grid">';
 
             persons.forEach(person => {
                 const total = person.primaryCount + person.secondaryCount;
@@ -1256,28 +1533,8 @@
                             <span class="stat-value">${total}회</span>
                         </div>
                         <div class="stat-row">
-                            <span class="stat-label">어당(일~목)</span>
-                            <span class="stat-value">${person.eodangCount}회</span>
-                        </div>
-                        <div class="stat-row">
-                            <span class="stat-label">어당아웃</span>
-                            <span class="stat-value">${person.eodangOutCount}회</span>
-                        </div>
-                        <div class="stat-row">
-                            <span class="stat-label">월~목</span>
-                            <span class="stat-value">${person.mondayToThursdayCount}회</span>
-                        </div>
-                        <div class="stat-row">
-                            <span class="stat-label">금요일</span>
-                            <span class="stat-value">${person.fridayCount}회</span>
-                        </div>
-                        <div class="stat-row">
-                            <span class="stat-label">토요일</span>
-                            <span class="stat-value">${person.saturdayCount}회</span>
-                        </div>
-                        <div class="stat-row">
-                            <span class="stat-label">일요일</span>
-                            <span class="stat-value">${person.sundayCount}회</span>
+                            <span class="stat-label">화요일</span>
+                            <span class="stat-value">${person.tuesdayCount || 0}회</span>
                         </div>
                     </div>
                 `;
@@ -1296,18 +1553,28 @@
             const seniorSchedule = data.senior.schedule;
 
             if (year1Schedule.length === 0 && year2Schedule.length === 0 && seniorSchedule.length === 0) {
-                container.innerHTML = '<p class="small-text">생성된 당직표가 없습니다. 각 년차별 당직표를 먼저 생성하거나 불러와주세요.</p>';
+                container.innerHTML = '<p class="small-text">생성된 당직표가 없습니다. 각 년차별 당직표를 먼저 생성해주세요.</p>';
                 return;
             }
 
-            const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
-            const firstDayOfWeek = new Date(currentYear, currentMonth - 1, 1).getDay();
+            // 날짜 범위 찾기
+            const allDates = [...year1Schedule, ...year2Schedule, ...seniorSchedule].map(s => s.date);
+            if (allDates.length === 0) {
+                container.innerHTML = '<p class="small-text">생성된 당직표가 없습니다.</p>';
+                return;
+            }
+
+            allDates.sort();
+            const firstDate = parseDate(allDates[0]);
+            const lastDate = parseDate(allDates[allDates.length - 1]);
+
+            const calendarStart = new Date(firstDate.getFullYear(), firstDate.getMonth(), 1);
+            const calendarEnd = new Date(lastDate.getFullYear(), lastDate.getMonth() + 1, 0);
 
             let html = '<div class="calendar">';
 
             // 요일 헤더
-            const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
-            dayNames.forEach((name, i) => {
+            DAYS_OF_WEEK.forEach((name, i) => {
                 let headerClass = 'calendar-day-header';
                 if (i === 0) headerClass += ' sunday';
                 if (i === 6) headerClass += ' saturday';
@@ -1315,55 +1582,66 @@
             });
 
             // 빈 칸
+            const firstDayOfWeek = calendarStart.getDay();
             for (let i = 0; i < firstDayOfWeek; i++) {
                 html += '<div class="calendar-day empty"></div>';
             }
 
             // 날짜
-            for (let day = 1; day <= daysInMonth; day++) {
-                const date = new Date(currentYear, currentMonth - 1, day);
-                const dayOfWeek = date.getDay();
-                const dateStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                const isHoliday = HOLIDAYS[dateStr];
+            const current = new Date(calendarStart);
+            while (current <= calendarEnd) {
+                const dateStr = formatDate(current);
+                const dayOfWeek = current.getDay();
+                const holidayName = HOLIDAYS[dateStr];
+
+                const y1 = year1Schedule.find(s => s.date === dateStr);
+                const y2 = year2Schedule.find(s => s.date === dateStr);
+                const sr = seniorSchedule.find(s => s.date === dateStr);
+
+                const hasData = y1 || y2 || sr;
 
                 let dayClass = 'calendar-day';
                 if (dayOfWeek === 0) dayClass += ' sunday';
                 if (dayOfWeek === 6) dayClass += ' saturday';
-                if (isHoliday) dayClass += ' holiday';
-
-                const y1 = year1Schedule.find(s => s.day === day);
-                const y2 = year2Schedule.find(s => s.day === day);
-                const sr = seniorSchedule.find(s => s.day === day);
+                if (holidayName) dayClass += ' holiday';
+                if (!hasData) dayClass += ' empty';
 
                 html += `<div class="${dayClass}">`;
-                html += `<div class="day-number">${day}</div>`;
+                html += `<div class="day-number">${current.getDate()}</div>`;
 
-                if (isHoliday) {
-                    html += `<div class="holiday-name">${isHoliday}</div>`;
+                if (holidayName) {
+                    html += `<div class="holiday-name">${holidayName}</div>`;
                 }
 
                 // 시니어
                 if (sr) {
-                    html += `<div class="duty-item senior primary">S: ${sr.primary}</div>`;
+                    sr.primaries.forEach(name => {
+                        html += `<div class="duty-item senior primary">S: ${name}</div>`;
+                    });
                 }
 
                 // 2년차
                 if (y2) {
-                    html += `<div class="duty-item year2 primary">2: ${y2.primary}</div>`;
-                    y2.secondaries.forEach(s => {
-                        html += `<div class="duty-item year2 secondary">2-2nd: ${s}</div>`;
+                    y2.primaries.forEach(name => {
+                        html += `<div class="duty-item year2 primary">2: ${name}</div>`;
+                    });
+                    y2.secondaries.forEach(name => {
+                        html += `<div class="duty-item year2 secondary">2-2nd: ${name}</div>`;
                     });
                 }
 
                 // 1년차
                 if (y1) {
-                    html += `<div class="duty-item year1 primary">1: ${y1.primary}</div>`;
-                    y1.secondaries.forEach(s => {
-                        html += `<div class="duty-item year1 secondary">1-2nd: ${s}</div>`;
+                    y1.primaries.forEach(name => {
+                        html += `<div class="duty-item year1 primary">1: ${name}</div>`;
+                    });
+                    y1.secondaries.forEach(name => {
+                        html += `<div class="duty-item year1 secondary">1-2nd: ${name}</div>`;
                     });
                 }
 
                 html += '</div>';
+                current.setDate(current.getDate() + 1);
             }
 
             html += '</div>';
@@ -1374,11 +1652,11 @@
         function saveSchedule(yearType) {
             const saveData = {
                 yearType: yearType,
-                year: currentYear,
-                month: currentMonth,
+                startDate: startDate ? formatDate(startDate) : null,
                 persons: data[yearType].persons,
                 schedule: data[yearType].schedule,
-                weekDuty: data[yearType].weekDuty,
+                weekDutyPerson: data[yearType].weekDutyPerson,
+                dateSpecificDutyCounts: dateSpecificDutyCounts,
                 savedAt: new Date().toISOString()
             };
 
@@ -1387,7 +1665,7 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `${yearType}_당직표_${currentYear}년${currentMonth}월.json`;
+            a.download = `${yearType}_당직표_4주.json`;
             a.click();
             URL.revokeObjectURL(url);
 
@@ -1409,20 +1687,23 @@
 
                         data[yearType].persons = loadedData.persons || [];
                         data[yearType].schedule = loadedData.schedule || [];
-                        data[yearType].weekDuty = loadedData.weekDuty || {};
+                        data[yearType].weekDutyPerson = loadedData.weekDutyPerson || '';
 
-                        if (loadedData.year && loadedData.month) {
-                            currentYear = loadedData.year;
-                            currentMonth = loadedData.month;
-                            document.getElementById('targetMonth').value =
-                                `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
-                            updateMonth();
+                        if (loadedData.startDate) {
+                            startDate = parseDate(loadedData.startDate);
+                            document.getElementById('startDate').value = loadedData.startDate;
+                            updateStartDate();
+                        }
+
+                        if (loadedData.dateSpecificDutyCounts) {
+                            dateSpecificDutyCounts = loadedData.dateSpecificDutyCounts;
                         }
 
                         renderPersonList(yearType);
                         renderWeekDutySelector(yearType);
                         renderCalendar(yearType);
                         renderStats(yearType);
+                        renderPreviewCalendar();
 
                         showMessage(yearType, '당직표를 불러왔습니다.', 'success');
                     } catch (error) {
@@ -1441,55 +1722,47 @@
 
         // ===== 예시 데이터 로드 =====
         function loadExampleData(yearType) {
-            // 예시 인원 데이터
             const examplePersons = {
                 year1: [
-                    { name: '김민수' }, { name: '이영희' }, { name: '박철수' },
-                    { name: '정수진' }, { name: '최동현' }, { name: '한미영' }
+                    { name: '김민수', preferredDays: [2, 4], avoidedDays: [0] },
+                    { name: '이영희', preferredDays: [1], avoidedDays: [5, 6] },
+                    { name: '박철수', preferredDays: [], avoidedDays: [0, 6] },
+                    { name: '정수진', preferredDays: [3], avoidedDays: [] },
+                    { name: '최동현', preferredDays: [5], avoidedDays: [1] },
+                    { name: '한미영', preferredDays: [], avoidedDays: [2] }
                 ],
                 year2: [
-                    { name: '강지훈' }, { name: '윤서연' }, { name: '임태현' },
-                    { name: '송지은' }, { name: '황민호' }
+                    { name: '강지훈', preferredDays: [1, 4], avoidedDays: [] },
+                    { name: '윤서연', preferredDays: [], avoidedDays: [0, 6] },
+                    { name: '임태현', preferredDays: [2], avoidedDays: [5] },
+                    { name: '송지은', preferredDays: [3, 5], avoidedDays: [] },
+                    { name: '황민호', preferredDays: [], avoidedDays: [1, 3] }
                 ],
                 senior: [
-                    { name: '오승현' }, { name: '신예진' }, { name: '류현우' },
-                    { name: '홍지민' }
+                    { name: '오승현', preferredDays: [1], avoidedDays: [0] },
+                    { name: '신예진', preferredDays: [], avoidedDays: [5, 6] },
+                    { name: '류현우', preferredDays: [4], avoidedDays: [] },
+                    { name: '홍지민', preferredDays: [2, 3], avoidedDays: [] }
                 ]
             };
 
-            // 인원 초기화 및 추가
             data[yearType].persons = examplePersons[yearType].map(p => ({
                 name: p.name,
+                preferredDays: p.preferredDays || [],
+                avoidedDays: p.avoidedDays || [],
                 primaryCount: 0,
                 secondaryCount: 0,
-                mondayToThursdayCount: 0,
-                saturdayCount: 0,
-                sundayCount: 0,
-                fridayCount: 0,
-                eodangCount: 0,
-                eodangOutCount: 0
+                tuesdayCount: 0
             }));
 
-            // 주차별 간당직 담당자 예시 설정
-            const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
-            const firstDay = new Date(currentYear, currentMonth - 1, 1).getDay();
-            const weeks = Math.ceil((firstDay + daysInMonth) / 7);
-
-            data[yearType].weekDuty = {};
-            for (let week = 1; week <= weeks; week++) {
-                // 각 주마다 돌아가며 간당직 담당자 지정
-                const personIndex = (week - 1) % data[yearType].persons.length;
-                data[yearType].weekDuty[week] = data[yearType].persons[personIndex].name;
-            }
-
-            // 스케줄 초기화
+            // 첫 번째 사람을 간당직자로 지정
+            data[yearType].weekDutyPerson = data[yearType].persons[0].name;
             data[yearType].schedule = [];
 
-            // UI 갱신
             renderPersonList(yearType);
-            renderWeekDutySelector(yearType, weeks);
+            renderWeekDutySelector(yearType);
 
-            showMessage(yearType, `예시 데이터가 로드되었습니다. (${data[yearType].persons.length}명, ${weeks}주)`, 'success');
+            showMessage(yearType, `예시 데이터가 로드되었습니다. (${data[yearType].persons.length}명)`, 'success');
         }
 
         function exportCombined() {
@@ -1497,41 +1770,49 @@
             const year2Schedule = data.year2.schedule;
             const seniorSchedule = data.senior.schedule;
 
-            let text = `${currentYear}년 ${currentMonth}월 전공의 당직표\n`;
+            if (year1Schedule.length === 0 && year2Schedule.length === 0 && seniorSchedule.length === 0) {
+                showMessage('combined', '내보낼 당직표가 없습니다.', 'error');
+                return;
+            }
+
+            let text = `전공의 당직표 (4주)\n`;
             text += '='.repeat(50) + '\n\n';
 
-            const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+            const allDates = [...new Set([
+                ...year1Schedule.map(s => s.date),
+                ...year2Schedule.map(s => s.date),
+                ...seniorSchedule.map(s => s.date)
+            ])].sort();
 
-            for (let day = 1; day <= daysInMonth; day++) {
-                const date = new Date(currentYear, currentMonth - 1, day);
+            allDates.forEach(dateStr => {
+                const date = parseDate(dateStr);
                 const dayOfWeek = date.getDay();
-                const dayName = ['일', '월', '화', '수', '목', '금', '토'][dayOfWeek];
-                const dateStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                const isHoliday = HOLIDAYS[dateStr];
+                const dayName = DAYS_OF_WEEK[dayOfWeek];
+                const holidayName = HOLIDAYS[dateStr];
 
-                const y1 = year1Schedule.find(s => s.day === day);
-                const y2 = year2Schedule.find(s => s.day === day);
-                const sr = seniorSchedule.find(s => s.day === day);
+                const y1 = year1Schedule.find(s => s.date === dateStr);
+                const y2 = year2Schedule.find(s => s.date === dateStr);
+                const sr = seniorSchedule.find(s => s.date === dateStr);
 
-                text += `${day}일 (${dayName})${isHoliday ? ' [' + isHoliday + ']' : ''}\n`;
+                text += `${dateStr} (${dayName})${holidayName ? ' [' + holidayName + ']' : ''}\n`;
 
-                if (sr) text += `  시니어: ${sr.primary}\n`;
+                if (sr && sr.primaries.length > 0) text += `  시니어: ${sr.primaries.join(', ')}\n`;
                 if (y2) {
-                    text += `  2년차: ${y2.primary}`;
+                    if (y2.primaries.length > 0) text += `  2년차: ${y2.primaries.join(', ')}`;
                     if (y2.secondaries.length > 0) text += `, 2nd: ${y2.secondaries.join(', ')}`;
                     text += '\n';
                 }
                 if (y1) {
-                    text += `  1년차: ${y1.primary}`;
+                    if (y1.primaries.length > 0) text += `  1년차: ${y1.primaries.join(', ')}`;
                     if (y1.secondaries.length > 0) text += `, 2nd: ${y1.secondaries.join(', ')}`;
                     text += '\n';
                 }
                 text += '\n';
-            }
+            });
 
             // 통계
             text += '\n' + '='.repeat(50) + '\n';
-            text += '통계\n';
+            text += '통계 (4주 기준)\n';
             text += '='.repeat(50) + '\n\n';
 
             ['year1', 'year2', 'senior'].forEach(yearType => {
@@ -1539,7 +1820,7 @@
                 text += `[${label}]\n`;
                 data[yearType].persons.forEach(p => {
                     text += `  ${p.name}: 당직 ${p.primaryCount}회, 2nd ${p.secondaryCount}회, `;
-                    text += `어당 ${p.eodangCount}회, 어당아웃 ${p.eodangOutCount}회\n`;
+                    text += `화요일 ${p.tuesdayCount || 0}회\n`;
                 });
                 text += '\n';
             });
@@ -1548,7 +1829,7 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `통합당직표_${currentYear}년${currentMonth}월.txt`;
+            a.download = `통합당직표_4주.txt`;
             a.click();
             URL.revokeObjectURL(url);
 
