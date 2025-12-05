@@ -1524,20 +1524,23 @@
         function canAssignForWeekDuty(person, schedule, day) {
             if (schedule.length > 0) {
                 const yesterday = schedule[schedule.length - 1];
-                if (yesterday.primaries.includes(person.name) || yesterday.secondaries.includes(person.name)) {
-                    return false; // 연속 당직 불가
+                // first당직 다음날만 불가 (2nd당직 다음날은 가능)
+                if (yesterday.primaries.includes(person.name)) {
+                    return false;
                 }
             }
             return true;
         }
 
         function canAssign(person, schedule, day, dayOfWeek) {
-            // 연속 당직 체크
+            // first당직 다음날 → first, 2nd 둘 다 불가
+            // 2nd당직 다음날 → first, 2nd 둘 다 가능
             if (schedule.length > 0) {
                 const yesterday = schedule[schedule.length - 1];
-                if (yesterday.primaries.includes(person.name) || yesterday.secondaries.includes(person.name)) {
-                    return false;
+                if (yesterday.primaries.includes(person.name)) {
+                    return false; // 어제 first당직이면 오늘 불가
                 }
+                // 어제 2nd당직이었으면 오늘 가능 (체크 안함)
             }
             return true;
         }
@@ -1553,7 +1556,7 @@
         }
 
         function canAssignSecondary(person, schedule, day, dayOfWeek) {
-            // 간당직자도 2nd당직은 모든 요일 가능 (일/월/수 포함)
+            // first당직 다음날만 불가, 2nd당직 다음날은 가능
             return canAssign(person, schedule, day, dayOfWeek);
         }
 
