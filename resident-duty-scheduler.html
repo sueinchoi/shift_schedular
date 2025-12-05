@@ -996,8 +996,9 @@
                 name: name,
                 preferredDays: [],  // 선호 요일: [0-6]
                 avoidedDays: [],    // 기피 요일: [0-6]
-                primaryCount: 0,
-                secondaryCount: 0,
+                primaryCount: 0,    // 당직 횟수 (1순위 균등)
+                eodangCount: 0,     // 어당 횟수 (2순위 균등): 일/월/화/수/목 당직 (휴일 제외)
+                secondaryCount: 0,  // 2nd당직 횟수 (3순위 균등)
                 tuesdayCount: 0     // 화요일 당직/2nd 횟수
             };
 
@@ -1180,6 +1181,7 @@
             // 카운트 초기화
             persons.forEach(p => {
                 p.primaryCount = 0;
+                p.eodangCount = 0;
                 p.secondaryCount = 0;
                 p.tuesdayCount = 0;
             });
@@ -1188,15 +1190,16 @@
             const weekDutyPerson = data[yearType].weekDutyPerson;
 
             let attempts = 0;
-            const maxAttempts = 500;
-            let bestSchedule = null;
-            let bestScore = -Infinity;
+            const maxAttempts = 1000;
+            const topCandidates = []; // 상위 후보 스케줄 저장
+            const MAX_CANDIDATES = 5; // 최대 후보 수
 
             while (attempts < maxAttempts) {
                 attempts++;
                 schedule.length = 0;
                 persons.forEach(p => {
                     p.primaryCount = 0;
+                    p.eodangCount = 0;
                     p.secondaryCount = 0;
                     p.tuesdayCount = 0;
                 });
@@ -1253,6 +1256,14 @@
                         daySchedule.primaries.push(primary.name);
                         assignedToday.push(primary);
                         primary.primaryCount++;
+
+                        // 어당 카운트: 일(0)/월(1)/화(2)/수(3)/목(4) 당직이면서 휴일이 아닌 경우
+                        const isEodangDay = dayOfWeek >= 0 && dayOfWeek <= 4; // 일~목
+                        const isHolidayDay = !!holidayName;
+                        if (isEodangDay && !isHolidayDay) {
+                            primary.eodangCount++;
+                        }
+
                         if (dayOfWeek === 2) primary.tuesdayCount++;
                     }
 
@@ -1277,32 +1288,58 @@
                 }
 
                 if (success) {
-                    const score = calculateBalanceScore(persons);
-                    if (score > bestScore) {
-                        bestScore = score;
-                        bestSchedule = JSON.parse(JSON.stringify(schedule));
-                        bestSchedule.personCounts = persons.map(p => ({
+                    const scoreObj = calculateBalanceScore(persons);
+                    const candidate = {
+                        schedule: JSON.parse(JSON.stringify(schedule)),
+                        personCounts: persons.map(p => ({
                             name: p.name,
                             primaryCount: p.primaryCount,
+                            eodangCount: p.eodangCount,
                             secondaryCount: p.secondaryCount,
                             tuesdayCount: p.tuesdayCount
-                        }));
+                        })),
+                        score: scoreObj.total,
+                        scoreDetails: scoreObj
+                    };
+
+                    // 상위 후보에 추가
+                    if (topCandidates.length < MAX_CANDIDATES) {
+                        topCandidates.push(candidate);
+                        topCandidates.sort((a, b) => b.score - a.score);
+                    } else if (candidate.score > topCandidates[topCandidates.length - 1].score) {
+                        // 중복 제거: 동일한 스케줄인지 체크
+                        const isDuplicate = topCandidates.some(tc =>
+                            JSON.stringify(tc.personCounts) === JSON.stringify(candidate.personCounts)
+                        );
+                        if (!isDuplicate) {
+                            topCandidates.pop();
+                            topCandidates.push(candidate);
+                            topCandidates.sort((a, b) => b.score - a.score);
+                        }
                     }
                 }
             }
 
-            if (!bestSchedule) {
+            if (topCandidates.length === 0) {
                 showMessage(yearType, `당직표 생성에 실패했습니다. (${attempts}번 시도)`, 'error');
                 return;
             }
 
+            // 후보 스케줄 저장
+            data[yearType].candidates = topCandidates;
+            data[yearType].selectedCandidate = 0;
+
+            // 첫 번째 후보를 기본 스케줄로 설정
+            const bestCandidate = topCandidates[0];
+            data[yearType].schedule = bestCandidate.schedule;
+
             // 최적 스케줄 복원
-            data[yearType].schedule = bestSchedule;
-            if (bestSchedule.personCounts) {
-                bestSchedule.personCounts.forEach(pc => {
+            if (bestCandidate.personCounts) {
+                bestCandidate.personCounts.forEach(pc => {
                     const person = persons.find(p => p.name === pc.name);
                     if (person) {
                         person.primaryCount = pc.primaryCount;
+                        person.eodangCount = pc.eodangCount;
                         person.secondaryCount = pc.secondaryCount;
                         person.tuesdayCount = pc.tuesdayCount;
                     }
@@ -1312,7 +1349,7 @@
             // [검증] 간당직자가 모든 화요일에 배정되었는지 확인
             let weekDutyWarnings = [];
             if (weekDutyPerson) {
-                bestSchedule.forEach(daySchedule => {
+                bestCandidate.schedule.forEach(daySchedule => {
                     if (daySchedule.dayOfWeek === 2) { // 화요일
                         const isAssigned = daySchedule.primaries.includes(weekDutyPerson) ||
                                           daySchedule.secondaries.includes(weekDutyPerson);
@@ -1323,28 +1360,53 @@
                 });
             }
 
+            renderCandidateSelector(yearType);
             renderCalendar(yearType);
             renderStats(yearType);
 
             if (weekDutyWarnings.length > 0) {
                 showMessage(yearType, `⚠️ 경고: 간당직자(${weekDutyPerson})가 다음 화요일에 배정되지 않았습니다: ${weekDutyWarnings.join(', ')}. 연속 당직 문제로 인해 발생했을 수 있습니다.`, 'warning');
             } else {
-                showMessage(yearType, `당직표가 생성되었습니다. (${attempts}번 시도, 균등점수: ${bestScore.toFixed(1)})${weekDutyPerson ? ' - 간당직자 모든 화요일 배정 완료' : ''}`, 'success');
+                const scoreDetails = bestCandidate.scoreDetails;
+                showMessage(yearType, `당직표 ${topCandidates.length}개 후보 생성 완료 (${attempts}번 시도)\n` +
+                    `우선순위 점수: 당직균등(${scoreDetails.primaryScore.toFixed(1)}) > ` +
+                    `어당균등(${scoreDetails.eodangScore.toFixed(1)}) > ` +
+                    `2nd균등(${scoreDetails.secondaryScore.toFixed(1)})` +
+                    (weekDutyPerson ? ' - 간당직자 모든 화요일 배정 완료' : ''), 'success');
             }
         }
 
         function calculateBalanceScore(persons) {
-            const metrics = ['primaryCount', 'secondaryCount'];
-            let totalScore = 0;
+            // 우선순위: 당직균등(1순위) > 어당균등(2순위) > 2nd당직균등(3순위)
+            // 더 높은 우선순위에 더 큰 가중치 부여
 
-            metrics.forEach(metric => {
-                const values = persons.map(p => p[metric]);
-                const avg = values.reduce((a, b) => a + b, 0) / values.length;
-                const variance = values.reduce((sum, v) => sum + Math.pow(v - avg, 2), 0) / values.length;
-                totalScore -= Math.sqrt(variance);
-            });
+            // 1순위: 당직 균등 (가장 중요 - 가중치 1000)
+            const primaryValues = persons.map(p => p.primaryCount);
+            const primaryAvg = primaryValues.reduce((a, b) => a + b, 0) / primaryValues.length;
+            const primaryVariance = primaryValues.reduce((sum, v) => sum + Math.pow(v - primaryAvg, 2), 0) / primaryValues.length;
+            const primaryScore = -Math.sqrt(primaryVariance) * 1000;
 
-            return totalScore;
+            // 2순위: 어당 균등 (두번째 중요 - 가중치 100)
+            const eodangValues = persons.map(p => p.eodangCount);
+            const eodangAvg = eodangValues.reduce((a, b) => a + b, 0) / eodangValues.length;
+            const eodangVariance = eodangValues.reduce((sum, v) => sum + Math.pow(v - eodangAvg, 2), 0) / eodangValues.length;
+            const eodangScore = -Math.sqrt(eodangVariance) * 100;
+
+            // 3순위: 2nd당직 균등 (세번째 중요 - 가중치 10)
+            const secondaryValues = persons.map(p => p.secondaryCount);
+            const secondaryAvg = secondaryValues.reduce((a, b) => a + b, 0) / secondaryValues.length;
+            const secondaryVariance = secondaryValues.reduce((sum, v) => sum + Math.pow(v - secondaryAvg, 2), 0) / secondaryValues.length;
+            const secondaryScore = -Math.sqrt(secondaryVariance) * 10;
+
+            return {
+                total: primaryScore + eodangScore + secondaryScore,
+                primaryScore: primaryScore,
+                eodangScore: eodangScore,
+                secondaryScore: secondaryScore,
+                primaryVariance: primaryVariance,
+                eodangVariance: eodangVariance,
+                secondaryVariance: secondaryVariance
+            };
         }
 
         function selectPrimary(yearType, persons, schedule, day, dayOfWeek, weekDutyPerson, assignedToday) {
@@ -1383,11 +1445,20 @@
                 candidates = nonAvoidedCandidates;
             }
 
-            // 당직 횟수가 적은 순으로 정렬
+            // 우선순위 기반 정렬: 당직 > 어당 > 2nd당직
             candidates.sort((a, b) => {
-                const totalA = a.primaryCount + a.secondaryCount * 0.5;
-                const totalB = b.primaryCount + b.secondaryCount * 0.5;
-                return totalA - totalB;
+                // 1순위: 당직 횟수 (낮을수록 우선)
+                if (a.primaryCount !== b.primaryCount) {
+                    return a.primaryCount - b.primaryCount;
+                }
+                // 2순위: 어당 횟수 (낮을수록 우선)
+                const aEodang = a.eodangCount || 0;
+                const bEodang = b.eodangCount || 0;
+                if (aEodang !== bEodang) {
+                    return aEodang - bEodang;
+                }
+                // 3순위: 2nd당직 횟수 (낮을수록 우선)
+                return a.secondaryCount - b.secondaryCount;
             });
 
             const minCount = candidates[0].primaryCount;
@@ -1474,6 +1545,97 @@
             return canAssign(person, schedule, day, dayOfWeek);
         }
 
+        // ===== 후보 스케줄 선택 UI =====
+        function renderCandidateSelector(yearType) {
+            const container = document.getElementById(`${yearType}-candidates`);
+            if (!container) {
+                // 후보 선택 영역이 없으면 생성
+                const calendarContainer = document.getElementById(`${yearType}-calendar`);
+                const candidateDiv = document.createElement('div');
+                candidateDiv.id = `${yearType}-candidates`;
+                candidateDiv.className = 'candidate-selector';
+                calendarContainer.parentNode.insertBefore(candidateDiv, calendarContainer);
+            }
+
+            const candidates = data[yearType].candidates || [];
+            const selectedIdx = data[yearType].selectedCandidate || 0;
+
+            if (candidates.length <= 1) {
+                document.getElementById(`${yearType}-candidates`).innerHTML = '';
+                return;
+            }
+
+            let html = `
+                <div class="settings-section" style="margin-top: 15px;">
+                    <h4>후보 스케줄 선택 (${candidates.length}개)</h4>
+                    <p class="small-text">우선순위: 당직균등(1순위) > 어당균등(2순위) > 2nd당직균등(3순위)</p>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
+            `;
+
+            candidates.forEach((candidate, idx) => {
+                const isSelected = idx === selectedIdx;
+                const scores = candidate.scoreDetails;
+                const btnClass = isSelected ? 'primary' : 'secondary';
+
+                html += `
+                    <div class="candidate-card" style="background: ${isSelected ? '#e8f4fd' : '#f8f9fa'};
+                         border: 2px solid ${isSelected ? '#3498db' : '#ddd'};
+                         border-radius: 8px; padding: 10px; min-width: 150px;">
+                        <div style="font-weight: 600; margin-bottom: 5px;">후보 ${idx + 1}</div>
+                        <div style="font-size: 11px; color: #666;">
+                            <div>당직분산: ${(-scores.primaryScore/1000).toFixed(2)}</div>
+                            <div>어당분산: ${(-scores.eodangScore/100).toFixed(2)}</div>
+                            <div>2nd분산: ${(-scores.secondaryScore/10).toFixed(2)}</div>
+                        </div>
+                        <button onclick="selectCandidate('${yearType}', ${idx})"
+                                class="${btnClass}"
+                                style="margin-top: 8px; padding: 5px 15px; font-size: 12px;">
+                            ${isSelected ? '선택됨' : '선택'}
+                        </button>
+                    </div>
+                `;
+            });
+
+            html += `
+                    </div>
+                </div>
+            `;
+
+            document.getElementById(`${yearType}-candidates`).innerHTML = html;
+        }
+
+        function selectCandidate(yearType, index) {
+            const candidates = data[yearType].candidates || [];
+            if (index < 0 || index >= candidates.length) return;
+
+            data[yearType].selectedCandidate = index;
+            const candidate = candidates[index];
+
+            // 스케줄 및 카운트 복원
+            data[yearType].schedule = candidate.schedule;
+            const persons = data[yearType].persons;
+
+            candidate.personCounts.forEach(pc => {
+                const person = persons.find(p => p.name === pc.name);
+                if (person) {
+                    person.primaryCount = pc.primaryCount;
+                    person.eodangCount = pc.eodangCount;
+                    person.secondaryCount = pc.secondaryCount;
+                    person.tuesdayCount = pc.tuesdayCount;
+                }
+            });
+
+            renderCandidateSelector(yearType);
+            renderCalendar(yearType);
+            renderStats(yearType);
+
+            const scores = candidate.scoreDetails;
+            showMessage(yearType, `후보 ${index + 1} 선택됨 - ` +
+                `당직분산: ${(-scores.primaryScore/1000).toFixed(2)}, ` +
+                `어당분산: ${(-scores.eodangScore/100).toFixed(2)}, ` +
+                `2nd분산: ${(-scores.secondaryScore/10).toFixed(2)}`, 'info');
+        }
+
         // ===== 캘린더 렌더링 =====
         function renderCalendar(yearType) {
             const container = document.getElementById(`${yearType}-calendar`);
@@ -1556,20 +1718,48 @@
                 return;
             }
 
-            let html = '<h3>통계 (4주 기준)</h3><div class="stats-grid">';
+            // 분산 계산
+            const primaryValues = persons.map(p => p.primaryCount);
+            const eodangValues = persons.map(p => p.eodangCount || 0);
+            const secondaryValues = persons.map(p => p.secondaryCount);
+
+            const calcVariance = (arr) => {
+                const avg = arr.reduce((a, b) => a + b, 0) / arr.length;
+                return arr.reduce((sum, v) => sum + Math.pow(v - avg, 2), 0) / arr.length;
+            };
+
+            const primaryVar = calcVariance(primaryValues);
+            const eodangVar = calcVariance(eodangValues);
+            const secondaryVar = calcVariance(secondaryValues);
+
+            let html = `
+                <h3>통계 (4주 기준)</h3>
+                <div class="alert alert-info" style="margin-bottom: 15px;">
+                    <strong>균등 분포 현황</strong> (분산이 낮을수록 균등)<br>
+                    <span style="color: #c0392b; font-weight: 600;">1순위 당직: 분산 ${primaryVar.toFixed(2)}</span> |
+                    <span style="color: #2980b9; font-weight: 600;">2순위 어당: 분산 ${eodangVar.toFixed(2)}</span> |
+                    <span style="color: #27ae60; font-weight: 600;">3순위 2nd: 분산 ${secondaryVar.toFixed(2)}</span>
+                </div>
+                <div class="stats-grid">
+            `;
 
             persons.forEach(person => {
                 const total = person.primaryCount + person.secondaryCount;
+                const eodang = person.eodangCount || 0;
                 html += `
                     <div class="stat-card">
                         <h4>${person.name}</h4>
                         <div class="stat-row">
-                            <span class="stat-label">당직</span>
-                            <span class="stat-value">${person.primaryCount}회</span>
+                            <span class="stat-label">당직 (1순위)</span>
+                            <span class="stat-value" style="color: #c0392b;">${person.primaryCount}회</span>
                         </div>
                         <div class="stat-row">
-                            <span class="stat-label">2nd</span>
-                            <span class="stat-value">${person.secondaryCount}회</span>
+                            <span class="stat-label">어당 (2순위)</span>
+                            <span class="stat-value" style="color: #2980b9;">${eodang}회</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">2nd (3순위)</span>
+                            <span class="stat-value" style="color: #27ae60;">${person.secondaryCount}회</span>
                         </div>
                         <div class="stat-row">
                             <span class="stat-label">총계</span>
@@ -1584,6 +1774,15 @@
             });
 
             html += '</div>';
+
+            // 어당 설명 추가
+            html += `
+                <p class="small-text" style="margin-top: 10px;">
+                    <strong>어당이란?</strong> 일/월/화/수/목 당직 중 휴일이 아닌 날의 당직 횟수입니다.
+                    휴일은 당직으로만 카운트되고 어당에서는 제외됩니다.
+                </p>
+            `;
+
             container.innerHTML = html;
         }
 
@@ -1794,6 +1993,7 @@
                 preferredDays: p.preferredDays || [],
                 avoidedDays: p.avoidedDays || [],
                 primaryCount: 0,
+                eodangCount: 0,
                 secondaryCount: 0,
                 tuesdayCount: 0
             }));
@@ -1862,8 +2062,8 @@
                 const label = yearType === 'year1' ? '1년차' : yearType === 'year2' ? '2년차' : '시니어';
                 text += `[${label}]\n`;
                 data[yearType].persons.forEach(p => {
-                    text += `  ${p.name}: 당직 ${p.primaryCount}회, 2nd ${p.secondaryCount}회, `;
-                    text += `화요일 ${p.tuesdayCount || 0}회\n`;
+                    text += `  ${p.name}: 당직 ${p.primaryCount}회, 어당 ${p.eodangCount || 0}회, `;
+                    text += `2nd ${p.secondaryCount}회, 화요일 ${p.tuesdayCount || 0}회\n`;
                 });
                 text += '\n';
             });
