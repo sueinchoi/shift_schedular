@@ -1416,15 +1416,9 @@
         }
 
         function selectPrimary(yearType, persons, schedule, day, dayOfWeek, weekDutyPerson, assignedToday) {
-            // [절대조건] 간당직자 - 화요일에 반드시 당직 또는 2nd당직으로 배정
-            // 화요일 당직 선택 시: 간당직자를 최우선으로 당직에 배정 시도
-            if (dayOfWeek === 2 && weekDutyPerson) {
-                const weekDutyPersonObj = persons.find(p => p.name === weekDutyPerson);
-                if (weekDutyPersonObj && !assignedToday.includes(weekDutyPersonObj) &&
-                    canAssignForWeekDuty(weekDutyPersonObj, schedule, day)) {
-                    return weekDutyPersonObj;
-                }
-            }
+            // 간당직자는 화요일에 first 또는 2nd 중 하나에 배정되면 됨
+            // first당직 선택은 균등 배분 우선으로 진행 (간당직자 우선권 없음)
+            // 만약 first에 배정 안되면 selectSecondary에서 2nd로 배정됨
 
             // 후보자 필터링
             let candidates = persons.filter(p =>
