@@ -556,6 +556,17 @@
         </div>
     </div>
 
+    <!-- 당직표 수정 팝업 -->
+    <div class="popup-overlay" id="scheduleEditOverlay" onclick="closeScheduleEditPopup()"></div>
+    <div class="date-settings-popup" id="scheduleEditPopup" style="max-width: 400px;">
+        <h4 id="scheduleEditTitle">당직표 수정</h4>
+        <div id="scheduleEditContent"></div>
+        <div class="button-group" style="margin-top: 15px;">
+            <button class="success" onclick="saveScheduleEdit()">저장</button>
+            <button class="secondary" onclick="closeScheduleEditPopup()">취소</button>
+        </div>
+    </div>
+
     <!-- 탭 -->
     <div class="tabs">
         <button class="tab year1 active" onclick="switchTab('year1')">1년차</button>
@@ -598,9 +609,14 @@
 
             <div class="button-group">
                 <button onclick="generateSchedule('year1')" class="success">당직표 생성</button>
-                <button onclick="saveSchedule('year1')" class="primary">저장</button>
-                <button onclick="loadSchedule('year1')" class="secondary">불러오기</button>
-                <button onclick="loadExampleData('year1')" class="secondary">예시 데이터 로드</button>
+                <button onclick="saveSchedule('year1')" class="primary">당직표 저장</button>
+                <button onclick="loadSchedule('year1')" class="secondary">당직표 불러오기</button>
+                <button onclick="exportScheduleJSON('year1')" class="secondary">JSON 출력</button>
+            </div>
+            <div class="button-group" style="margin-top: 10px;">
+                <button onclick="saveRoster('year1')" class="secondary" style="background: #9b59b6;">명단 저장</button>
+                <button onclick="loadRoster('year1')" class="secondary" style="background: #8e44ad;">명단 불러오기</button>
+                <button onclick="loadExampleData('year1')" class="secondary">예시 데이터</button>
             </div>
 
             <div id="year1-messages"></div>
@@ -643,9 +659,14 @@
 
             <div class="button-group">
                 <button onclick="generateSchedule('year2')" class="success">당직표 생성</button>
-                <button onclick="saveSchedule('year2')" class="primary">저장</button>
-                <button onclick="loadSchedule('year2')" class="secondary">불러오기</button>
-                <button onclick="loadExampleData('year2')" class="secondary">예시 데이터 로드</button>
+                <button onclick="saveSchedule('year2')" class="primary">당직표 저장</button>
+                <button onclick="loadSchedule('year2')" class="secondary">당직표 불러오기</button>
+                <button onclick="exportScheduleJSON('year2')" class="secondary">JSON 출력</button>
+            </div>
+            <div class="button-group" style="margin-top: 10px;">
+                <button onclick="saveRoster('year2')" class="secondary" style="background: #9b59b6;">명단 저장</button>
+                <button onclick="loadRoster('year2')" class="secondary" style="background: #8e44ad;">명단 불러오기</button>
+                <button onclick="loadExampleData('year2')" class="secondary">예시 데이터</button>
             </div>
 
             <div id="year2-messages"></div>
@@ -687,9 +708,14 @@
 
             <div class="button-group">
                 <button onclick="generateSchedule('senior')" class="success">당직표 생성</button>
-                <button onclick="saveSchedule('senior')" class="primary">저장</button>
-                <button onclick="loadSchedule('senior')" class="secondary">불러오기</button>
-                <button onclick="loadExampleData('senior')" class="secondary">예시 데이터 로드</button>
+                <button onclick="saveSchedule('senior')" class="primary">당직표 저장</button>
+                <button onclick="loadSchedule('senior')" class="secondary">당직표 불러오기</button>
+                <button onclick="exportScheduleJSON('senior')" class="secondary">JSON 출력</button>
+            </div>
+            <div class="button-group" style="margin-top: 10px;">
+                <button onclick="saveRoster('senior')" class="secondary" style="background: #9b59b6;">명단 저장</button>
+                <button onclick="loadRoster('senior')" class="secondary" style="background: #8e44ad;">명단 불러오기</button>
+                <button onclick="loadExampleData('senior')" class="secondary">예시 데이터</button>
             </div>
 
             <div id="senior-messages"></div>
@@ -719,9 +745,14 @@
             </div>
 
             <div class="button-group">
-                <button onclick="loadAllSchedules()" class="primary">모든 당직표 불러오기</button>
-                <button onclick="exportCombined()" class="secondary">내보내기</button>
+                <button onclick="loadAllSchedules()" class="primary">현재 당직표 통합</button>
+                <button onclick="loadScheduleToIntegrated()" class="success">JSON 파일 불러오기</button>
+                <button onclick="exportCombined()" class="secondary">텍스트 내보내기</button>
+                <button onclick="exportCombinedJSON()" class="secondary">JSON 내보내기</button>
             </div>
+            <p class="small-text" style="margin-top: 10px;">
+                JSON 파일 불러오기: 여러 연차의 JSON 파일을 선택하여 한번에 불러올 수 있습니다.
+            </p>
 
             <div id="combined-messages"></div>
             <div id="combined-calendar"></div>
@@ -739,8 +770,15 @@
         let startDate = null;
         let currentPopupDate = null;
 
-        // 날짜별 당직 수 설정 (기본값과 다른 경우만 저장)
-        let dateSpecificDutyCounts = {};
+        // 날짜별 당직 수 설정 (연차별로 분리)
+        let dateSpecificDutyCounts = {
+            year1: {},
+            year2: {},
+            senior: {}
+        };
+
+        // 현재 선택된 탭
+        let currentTab = 'year1';
 
         // 대한민국 공휴일
         const HOLIDAYS = {
@@ -848,7 +886,13 @@
             // 끝일의 해당 월 마지막날
             const calendarEnd = new Date(endDate.getFullYear(), endDate.getMonth() + 1, 0);
 
-            let html = '<div class="calendar">';
+            const yearTypeLabel = currentTab === 'year1' ? '1년차' : currentTab === 'year2' ? '2년차' : '시니어';
+            const yearTypeColor = currentTab === 'year1' ? '#e74c3c' : currentTab === 'year2' ? '#27ae60' : '#9b59b6';
+
+            let html = `<div class="alert" style="background: ${yearTypeColor}22; border-left: 4px solid ${yearTypeColor}; margin-bottom: 10px;">
+                <strong style="color: ${yearTypeColor};">${yearTypeLabel}</strong> 당직 설정 (날짜를 클릭하여 수정)
+            </div>`;
+            html += '<div class="calendar">';
 
             // 요일 헤더
             DAYS_OF_WEEK.forEach((name, i) => {
@@ -889,8 +933,9 @@
 
                 if (isInRange) {
                     const weekNum = Math.floor((current - startDate) / (7 * 24 * 60 * 60 * 1000)) + 1;
+                    const isCustomized = dateSpecificDutyCounts[currentTab] && dateSpecificDutyCounts[currentTab][dateStr];
                     html += `<div class="day-info">${weekNum}주차</div>`;
-                    html += `<div class="duty-count">당직:${dutyInfo.primary} 2nd:${dutyInfo.secondary}</div>`;
+                    html += `<div class="duty-count" style="${isCustomized ? 'color: #e74c3c; font-weight: bold;' : ''}">당직:${dutyInfo.primary} 2nd:${dutyInfo.secondary}${isCustomized ? '*' : ''}</div>`;
                 }
 
                 html += '</div>';
@@ -902,10 +947,12 @@
             container.innerHTML = html;
         }
 
-        function getDutyCountsForDate(dateStr, dayOfWeek) {
-            // 날짜별 설정이 있으면 사용
-            if (dateSpecificDutyCounts[dateStr]) {
-                return dateSpecificDutyCounts[dateStr];
+        function getDutyCountsForDate(dateStr, dayOfWeek, yearType = null) {
+            const yt = yearType || currentTab;
+
+            // 날짜별 설정이 있으면 사용 (연차별)
+            if (dateSpecificDutyCounts[yt] && dateSpecificDutyCounts[yt][dateStr]) {
+                return dateSpecificDutyCounts[yt][dateStr];
             }
 
             // 기본값: 주말/휴일은 당직 1명만
@@ -913,8 +960,19 @@
                 return { primary: 1, secondary: 0 };
             }
 
-            // 평일 기본값
-            return { primary: 1, secondary: 1 };
+            // 평일 기본값 - 연차별로 다름
+            if (yt === 'year1') {
+                // 1년차: 월목 2nd 1명, 화수금 2nd 2명
+                const secondaryCount = (dayOfWeek === 1 || dayOfWeek === 4) ? 1 : 2;
+                return { primary: 1, secondary: secondaryCount };
+            } else if (yt === 'year2') {
+                // 2년차: 월목 2nd 2명, 화수금 2nd 1명
+                const secondaryCount = (dayOfWeek === 1 || dayOfWeek === 4) ? 2 : 1;
+                return { primary: 1, secondary: secondaryCount };
+            } else {
+                // 시니어: 2nd 없음
+                return { primary: 1, secondary: 0 };
+            }
         }
 
         function openDatePopup(dateStr) {
@@ -952,16 +1010,41 @@
             const primary = parseInt(document.getElementById('popupPrimaryCount').value) || 0;
             const secondary = parseInt(document.getElementById('popupSecondaryCount').value) || 0;
 
-            if (primary === 0 && secondary === 0) {
-                // 둘 다 0이면 설정 삭제 (당직 없음)
-                dateSpecificDutyCounts[currentPopupDate] = { primary: 0, secondary: 0 };
+            // 현재 탭의 연차에 대해 저장
+            if (!dateSpecificDutyCounts[currentTab]) {
+                dateSpecificDutyCounts[currentTab] = {};
+            }
+
+            // 기본값과 비교하여 다른 경우만 저장
+            const date = parseDate(currentPopupDate);
+            const dayOfWeek = date.getDay();
+            const defaultDuty = getDefaultDutyCount(currentPopupDate, dayOfWeek, currentTab);
+
+            if (primary === defaultDuty.primary && secondary === defaultDuty.secondary) {
+                // 기본값과 같으면 삭제
+                delete dateSpecificDutyCounts[currentTab][currentPopupDate];
             } else {
-                dateSpecificDutyCounts[currentPopupDate] = { primary, secondary };
+                dateSpecificDutyCounts[currentTab][currentPopupDate] = { primary, secondary };
             }
 
             renderPreviewCalendar();
             closeDatePopup();
-            showMessage('year1', '날짜별 당직 수가 설정되었습니다.', 'success');
+            showMessage(currentTab, '날짜별 당직 수가 설정되었습니다.', 'success');
+        }
+
+        // 기본 당직 수 반환 (저장된 값 제외)
+        function getDefaultDutyCount(dateStr, dayOfWeek, yearType) {
+            if (dayOfWeek === 0 || dayOfWeek === 6 || isHoliday(dateStr)) {
+                return { primary: 1, secondary: 0 };
+            }
+            if (yearType === 'year1') {
+                const secondaryCount = (dayOfWeek === 1 || dayOfWeek === 4) ? 1 : 2;
+                return { primary: 1, secondary: secondaryCount };
+            } else if (yearType === 'year2') {
+                const secondaryCount = (dayOfWeek === 1 || dayOfWeek === 4) ? 2 : 1;
+                return { primary: 1, secondary: secondaryCount };
+            }
+            return { primary: 1, secondary: 0 };
         }
 
         // ===== 탭 전환 =====
@@ -972,7 +1055,10 @@
             document.querySelector(`.tab.${tabName}`).classList.add('active');
             document.getElementById(`tab-${tabName}`).classList.add('active');
 
-            if (tabName === 'combined') {
+            if (tabName !== 'combined') {
+                currentTab = tabName;
+                renderPreviewCalendar();
+            } else {
                 renderCombinedCalendar();
             }
         }
@@ -1219,21 +1305,10 @@
                     const holidayName = HOLIDAYS[dateStr];
                     const weekNumber = Math.floor(day / 7) + 1;
 
-                    // 당직 인원 수 결정
-                    const dutyInfo = getDutyCountsForDate(dateStr, dayOfWeek);
-                    let primaryCount = dutyInfo.primary;
-                    let secondaryCount = dutyInfo.secondary;
-
-                    // yearType에 따른 2nd 당직 수 조정 (기본값인 경우에만)
-                    if (!dateSpecificDutyCounts[dateStr] && dayOfWeek >= 1 && dayOfWeek <= 5 && !holidayName) {
-                        if (yearType === 'year1') {
-                            secondaryCount = (dayOfWeek === 1 || dayOfWeek === 4) ? 1 : 2;
-                        } else if (yearType === 'year2') {
-                            secondaryCount = (dayOfWeek === 1 || dayOfWeek === 4) ? 2 : 1;
-                        } else {
-                            secondaryCount = 0;
-                        }
-                    }
+                    // 당직 인원 수 결정 (yearType 전달하여 연차별 기본값 적용)
+                    const dutyInfo = getDutyCountsForDate(dateStr, dayOfWeek, yearType);
+                    const primaryCount = dutyInfo.primary;
+                    const secondaryCount = dutyInfo.secondary;
 
                     const daySchedule = {
                         day: day + 1,
@@ -1704,7 +1779,8 @@
             const calendarStart = new Date(firstDate.getFullYear(), firstDate.getMonth(), 1);
             const calendarEnd = new Date(lastDate.getFullYear(), lastDate.getMonth() + 1, 0);
 
-            let html = '<div class="calendar">';
+            let html = '<p class="small-text" style="margin-bottom: 10px;">날짜를 클릭하면 당직자를 직접 수정할 수 있습니다.</p>';
+            html += '<div class="calendar">';
 
             // 요일 헤더
             DAYS_OF_WEEK.forEach((name, i) => {
@@ -1734,7 +1810,8 @@
                 if (holidayName) dayClass += ' holiday';
                 if (!daySchedule) dayClass += ' empty';
 
-                html += `<div class="${dayClass}">`;
+                const clickHandler = daySchedule ? `onclick="openScheduleEdit('${yearType}', '${dateStr}')" style="cursor: pointer;"` : '';
+                html += `<div class="${dayClass}" ${clickHandler}>`;
                 html += `<div class="day-number">${current.getDate()}</div>`;
 
                 if (holidayName) {
@@ -1756,6 +1833,206 @@
 
             html += '</div>';
             container.innerHTML = html;
+        }
+
+        // ===== 당직표 수정 =====
+        let currentEditYearType = null;
+        let currentEditDate = null;
+
+        function openScheduleEdit(yearType, dateStr) {
+            currentEditYearType = yearType;
+            currentEditDate = dateStr;
+
+            const schedule = data[yearType].schedule;
+            const daySchedule = schedule.find(s => s.date === dateStr);
+            if (!daySchedule) return;
+
+            const date = parseDate(dateStr);
+            const dayOfWeek = date.getDay();
+            const holidayName = HOLIDAYS[dateStr];
+            const persons = data[yearType].persons;
+
+            document.getElementById('scheduleEditTitle').textContent =
+                `${dateStr} (${DAYS_OF_WEEK[dayOfWeek]})${holidayName ? ' - ' + holidayName : ''} 당직 수정`;
+
+            let html = '';
+
+            // 당직자 선택
+            html += '<div style="margin-bottom: 15px;">';
+            html += '<label style="font-weight: 600; display: block; margin-bottom: 5px;">당직자 (first):</label>';
+            for (let i = 0; i < Math.max(daySchedule.primaries.length, 1); i++) {
+                html += `<select id="editPrimary${i}" style="width: 100%; margin-bottom: 5px; padding: 8px;">`;
+                html += '<option value="">(없음)</option>';
+                persons.forEach(p => {
+                    const selected = daySchedule.primaries[i] === p.name ? 'selected' : '';
+                    html += `<option value="${p.name}" ${selected}>${p.name}</option>`;
+                });
+                html += '</select>';
+            }
+            html += `<button type="button" onclick="addPrimarySelect()" class="secondary" style="padding: 5px 10px; font-size: 12px;">+ 당직 추가</button>`;
+            html += '</div>';
+
+            // 2nd 당직자 선택
+            html += '<div style="margin-bottom: 15px;">';
+            html += '<label style="font-weight: 600; display: block; margin-bottom: 5px;">2nd당직자:</label>';
+            for (let i = 0; i < Math.max(daySchedule.secondaries.length, 1); i++) {
+                html += `<select id="editSecondary${i}" style="width: 100%; margin-bottom: 5px; padding: 8px;">`;
+                html += '<option value="">(없음)</option>';
+                persons.forEach(p => {
+                    const selected = daySchedule.secondaries[i] === p.name ? 'selected' : '';
+                    html += `<option value="${p.name}" ${selected}>${p.name}</option>`;
+                });
+                html += '</select>';
+            }
+            html += `<button type="button" onclick="addSecondarySelect()" class="secondary" style="padding: 5px 10px; font-size: 12px;">+ 2nd 추가</button>`;
+            html += '</div>';
+
+            document.getElementById('scheduleEditContent').innerHTML = html;
+            document.getElementById('scheduleEditOverlay').classList.add('active');
+            document.getElementById('scheduleEditPopup').classList.add('active');
+        }
+
+        function addPrimarySelect() {
+            const container = document.getElementById('scheduleEditContent');
+            const existingSelects = container.querySelectorAll('[id^="editPrimary"]');
+            const newIndex = existingSelects.length;
+            const persons = data[currentEditYearType].persons;
+
+            const newSelect = document.createElement('select');
+            newSelect.id = `editPrimary${newIndex}`;
+            newSelect.style.cssText = 'width: 100%; margin-bottom: 5px; padding: 8px;';
+
+            let options = '<option value="">(없음)</option>';
+            persons.forEach(p => {
+                options += `<option value="${p.name}">${p.name}</option>`;
+            });
+            newSelect.innerHTML = options;
+
+            const addBtn = container.querySelector('button[onclick="addPrimarySelect()"]');
+            addBtn.parentNode.insertBefore(newSelect, addBtn);
+        }
+
+        function addSecondarySelect() {
+            const container = document.getElementById('scheduleEditContent');
+            const existingSelects = container.querySelectorAll('[id^="editSecondary"]');
+            const newIndex = existingSelects.length;
+            const persons = data[currentEditYearType].persons;
+
+            const newSelect = document.createElement('select');
+            newSelect.id = `editSecondary${newIndex}`;
+            newSelect.style.cssText = 'width: 100%; margin-bottom: 5px; padding: 8px;';
+
+            let options = '<option value="">(없음)</option>';
+            persons.forEach(p => {
+                options += `<option value="${p.name}">${p.name}</option>`;
+            });
+            newSelect.innerHTML = options;
+
+            const addBtn = container.querySelector('button[onclick="addSecondarySelect()"]');
+            addBtn.parentNode.insertBefore(newSelect, addBtn);
+        }
+
+        function closeScheduleEditPopup() {
+            document.getElementById('scheduleEditOverlay').classList.remove('active');
+            document.getElementById('scheduleEditPopup').classList.remove('active');
+            currentEditYearType = null;
+            currentEditDate = null;
+        }
+
+        function saveScheduleEdit() {
+            if (!currentEditYearType || !currentEditDate) return;
+
+            const schedule = data[currentEditYearType].schedule;
+            const daySchedule = schedule.find(s => s.date === currentEditDate);
+            if (!daySchedule) return;
+
+            const persons = data[currentEditYearType].persons;
+
+            // 이전 카운트 백업
+            const oldPrimaries = [...daySchedule.primaries];
+            const oldSecondaries = [...daySchedule.secondaries];
+
+            // 새로운 당직자 수집
+            const container = document.getElementById('scheduleEditContent');
+            const primarySelects = container.querySelectorAll('[id^="editPrimary"]');
+            const secondarySelects = container.querySelectorAll('[id^="editSecondary"]');
+
+            const newPrimaries = [];
+            primarySelects.forEach(select => {
+                if (select.value) newPrimaries.push(select.value);
+            });
+
+            const newSecondaries = [];
+            secondarySelects.forEach(select => {
+                if (select.value) newSecondaries.push(select.value);
+            });
+
+            // 카운트 업데이트
+            // 이전 당직자 카운트 감소
+            oldPrimaries.forEach(name => {
+                const person = persons.find(p => p.name === name);
+                if (person) {
+                    person.primaryCount = Math.max(0, person.primaryCount - 1);
+                    // 어당/비어당 카운트 감소
+                    const date = parseDate(currentEditDate);
+                    const dayOfWeek = date.getDay();
+                    const isEodangDay = dayOfWeek >= 0 && dayOfWeek <= 4;
+                    const isHolidayDay = !!HOLIDAYS[currentEditDate];
+                    if (isEodangDay && !isHolidayDay) {
+                        person.eodangCount = Math.max(0, (person.eodangCount || 0) - 1);
+                    } else {
+                        person.nonEodangCount = Math.max(0, (person.nonEodangCount || 0) - 1);
+                    }
+                    if (dayOfWeek === 2) person.tuesdayCount = Math.max(0, (person.tuesdayCount || 0) - 1);
+                }
+            });
+
+            oldSecondaries.forEach(name => {
+                const person = persons.find(p => p.name === name);
+                if (person) {
+                    person.secondaryCount = Math.max(0, person.secondaryCount - 1);
+                    const date = parseDate(currentEditDate);
+                    if (date.getDay() === 2) person.tuesdayCount = Math.max(0, (person.tuesdayCount || 0) - 1);
+                }
+            });
+
+            // 새 당직자 카운트 증가
+            newPrimaries.forEach(name => {
+                const person = persons.find(p => p.name === name);
+                if (person) {
+                    person.primaryCount++;
+                    const date = parseDate(currentEditDate);
+                    const dayOfWeek = date.getDay();
+                    const isEodangDay = dayOfWeek >= 0 && dayOfWeek <= 4;
+                    const isHolidayDay = !!HOLIDAYS[currentEditDate];
+                    if (isEodangDay && !isHolidayDay) {
+                        person.eodangCount = (person.eodangCount || 0) + 1;
+                    } else {
+                        person.nonEodangCount = (person.nonEodangCount || 0) + 1;
+                    }
+                    if (dayOfWeek === 2) person.tuesdayCount = (person.tuesdayCount || 0) + 1;
+                }
+            });
+
+            newSecondaries.forEach(name => {
+                const person = persons.find(p => p.name === name);
+                if (person) {
+                    person.secondaryCount++;
+                    const date = parseDate(currentEditDate);
+                    if (date.getDay() === 2) person.tuesdayCount = (person.tuesdayCount || 0) + 1;
+                }
+            });
+
+            // 스케줄 업데이트
+            daySchedule.primaries = newPrimaries;
+            daySchedule.secondaries = newSecondaries;
+
+            // UI 업데이트
+            renderCalendar(currentEditYearType);
+            renderStats(currentEditYearType);
+            closeScheduleEditPopup();
+
+            showMessage(currentEditYearType, '당직표가 수정되었습니다.', 'success');
         }
 
         // ===== 통계 렌더링 =====
@@ -1963,7 +2240,7 @@
                 persons: data[yearType].persons,
                 schedule: data[yearType].schedule,
                 weekDutyPerson: data[yearType].weekDutyPerson,
-                dateSpecificDutyCounts: dateSpecificDutyCounts,
+                dateSpecificDutyCounts: dateSpecificDutyCounts[yearType] || {},
                 savedAt: new Date().toISOString()
             };
 
@@ -1977,6 +2254,73 @@
             URL.revokeObjectURL(url);
 
             showMessage(yearType, '당직표가 저장되었습니다.', 'success');
+        }
+
+        // 명단만 저장
+        function saveRoster(yearType) {
+            const saveData = {
+                yearType: yearType,
+                persons: data[yearType].persons.map(p => ({
+                    name: p.name,
+                    preferredDays: p.preferredDays || [],
+                    avoidedDays: p.avoidedDays || []
+                })),
+                weekDutyPerson: data[yearType].weekDutyPerson,
+                savedAt: new Date().toISOString()
+            };
+
+            const json = JSON.stringify(saveData, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${yearType}_명단.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            showMessage(yearType, '명단이 저장되었습니다.', 'success');
+        }
+
+        // 명단만 불러오기
+        function loadRoster(yearType) {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const loadedData = JSON.parse(e.target.result);
+
+                        data[yearType].persons = (loadedData.persons || []).map(p => ({
+                            name: p.name,
+                            preferredDays: p.preferredDays || [],
+                            avoidedDays: p.avoidedDays || [],
+                            primaryCount: 0,
+                            eodangCount: 0,
+                            nonEodangCount: 0,
+                            secondaryCount: 0,
+                            tuesdayCount: 0
+                        }));
+                        data[yearType].weekDutyPerson = loadedData.weekDutyPerson || '';
+                        data[yearType].schedule = []; // 스케줄 초기화
+
+                        renderPersonList(yearType);
+                        renderWeekDutySelector(yearType);
+                        renderCalendar(yearType);
+                        renderStats(yearType);
+
+                        showMessage(yearType, '명단을 불러왔습니다.', 'success');
+                    } catch (error) {
+                        showMessage(yearType, '파일 읽기 실패: ' + error.message, 'error');
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
         }
 
         function loadSchedule(yearType) {
@@ -2002,8 +2346,12 @@
                             updateStartDate();
                         }
 
+                        // 연차별 dateSpecificDutyCounts 처리
                         if (loadedData.dateSpecificDutyCounts) {
-                            dateSpecificDutyCounts = loadedData.dateSpecificDutyCounts;
+                            // 새 형식 (연차별 객체) 또는 구 형식 (날짜별 객체) 처리
+                            if (typeof loadedData.dateSpecificDutyCounts === 'object') {
+                                dateSpecificDutyCounts[yearType] = loadedData.dateSpecificDutyCounts;
+                            }
                         }
 
                         renderPersonList(yearType);
@@ -2025,6 +2373,175 @@
         function loadAllSchedules() {
             showMessage('combined', '각 년차별 당직표를 먼저 생성하거나 불러온 후 통합 캘린더를 확인하세요.', 'info');
             renderCombinedCalendar();
+        }
+
+        // 통합 캘린더에 JSON 파일 추가 로드
+        function loadScheduleToIntegrated() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.multiple = true;
+            input.onchange = function(e) {
+                const files = Array.from(e.target.files);
+                if (files.length === 0) return;
+
+                let loadedCount = 0;
+                files.forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        try {
+                            const loadedData = JSON.parse(e.target.result);
+                            const yearType = loadedData.yearType;
+
+                            if (!yearType || !['year1', 'year2', 'senior'].includes(yearType)) {
+                                showMessage('combined', `유효하지 않은 파일: ${file.name}`, 'error');
+                                return;
+                            }
+
+                            data[yearType].persons = loadedData.persons || [];
+                            data[yearType].schedule = loadedData.schedule || [];
+                            data[yearType].weekDutyPerson = loadedData.weekDutyPerson || '';
+
+                            if (loadedData.startDate && !startDate) {
+                                startDate = parseDate(loadedData.startDate);
+                                document.getElementById('startDate').value = loadedData.startDate;
+                                updateStartDate();
+                            }
+
+                            if (loadedData.dateSpecificDutyCounts) {
+                                dateSpecificDutyCounts[yearType] = loadedData.dateSpecificDutyCounts;
+                            }
+
+                            loadedCount++;
+
+                            // 모든 파일 로드 완료 시
+                            if (loadedCount === files.length) {
+                                renderCombinedCalendar();
+                                showMessage('combined', `${loadedCount}개 파일이 로드되었습니다.`, 'success');
+                            }
+                        } catch (error) {
+                            showMessage('combined', `파일 읽기 실패 (${file.name}): ${error.message}`, 'error');
+                        }
+                    };
+                    reader.readAsText(file);
+                });
+            };
+            input.click();
+        }
+
+        // 개별 당직표 JSON 출력
+        function exportScheduleJSON(yearType) {
+            const schedule = data[yearType].schedule;
+            if (!schedule || schedule.length === 0) {
+                showMessage(yearType, '내보낼 당직표가 없습니다.', 'error');
+                return;
+            }
+
+            const exportData = {
+                yearType: yearType,
+                startDate: startDate ? formatDate(startDate) : null,
+                period: startDate ? `${formatDate(startDate)} ~ ${formatDate(new Date(startDate.getTime() + 27 * 24 * 60 * 60 * 1000))}` : null,
+                schedule: schedule.map(day => ({
+                    date: day.date,
+                    dayName: day.dayName,
+                    isWeekend: day.isWeekend,
+                    isHoliday: day.isHoliday || null,
+                    primaries: day.primaries,
+                    secondaries: day.secondaries
+                })),
+                statistics: data[yearType].persons.map(p => ({
+                    name: p.name,
+                    primaryCount: p.primaryCount,
+                    eodangCount: p.eodangCount || 0,
+                    nonEodangCount: p.nonEodangCount || 0,
+                    secondaryCount: p.secondaryCount,
+                    totalCount: p.primaryCount + p.secondaryCount
+                })),
+                exportedAt: new Date().toISOString()
+            };
+
+            const json = JSON.stringify(exportData, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${yearType}_당직표_출력_${formatDate(new Date())}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            showMessage(yearType, 'JSON 당직표가 내보내졌습니다.', 'success');
+        }
+
+        // 통합 당직표 JSON 출력
+        function exportCombinedJSON() {
+            const year1Schedule = data.year1.schedule;
+            const year2Schedule = data.year2.schedule;
+            const seniorSchedule = data.senior.schedule;
+
+            if (year1Schedule.length === 0 && year2Schedule.length === 0 && seniorSchedule.length === 0) {
+                showMessage('combined', '내보낼 당직표가 없습니다.', 'error');
+                return;
+            }
+
+            const allDates = [...new Set([
+                ...year1Schedule.map(s => s.date),
+                ...year2Schedule.map(s => s.date),
+                ...seniorSchedule.map(s => s.date)
+            ])].sort();
+
+            const combinedSchedule = allDates.map(dateStr => {
+                const y1 = year1Schedule.find(s => s.date === dateStr);
+                const y2 = year2Schedule.find(s => s.date === dateStr);
+                const sr = seniorSchedule.find(s => s.date === dateStr);
+                const date = parseDate(dateStr);
+
+                return {
+                    date: dateStr,
+                    dayName: DAYS_OF_WEEK[date.getDay()],
+                    isHoliday: HOLIDAYS[dateStr] || null,
+                    year1: y1 ? { primaries: y1.primaries, secondaries: y1.secondaries } : null,
+                    year2: y2 ? { primaries: y2.primaries, secondaries: y2.secondaries } : null,
+                    senior: sr ? { primaries: sr.primaries, secondaries: sr.secondaries } : null
+                };
+            });
+
+            const exportData = {
+                startDate: startDate ? formatDate(startDate) : allDates[0],
+                period: allDates.length > 0 ? `${allDates[0]} ~ ${allDates[allDates.length - 1]}` : null,
+                schedule: combinedSchedule,
+                statistics: {
+                    year1: data.year1.persons.map(p => ({
+                        name: p.name,
+                        primaryCount: p.primaryCount,
+                        secondaryCount: p.secondaryCount,
+                        totalCount: p.primaryCount + p.secondaryCount
+                    })),
+                    year2: data.year2.persons.map(p => ({
+                        name: p.name,
+                        primaryCount: p.primaryCount,
+                        secondaryCount: p.secondaryCount,
+                        totalCount: p.primaryCount + p.secondaryCount
+                    })),
+                    senior: data.senior.persons.map(p => ({
+                        name: p.name,
+                        primaryCount: p.primaryCount,
+                        secondaryCount: p.secondaryCount,
+                        totalCount: p.primaryCount + p.secondaryCount
+                    }))
+                },
+                exportedAt: new Date().toISOString()
+            };
+
+            const json = JSON.stringify(exportData, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `통합당직표_${formatDate(new Date())}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            showMessage('combined', '통합 JSON 당직표가 내보내졌습니다.', 'success');
         }
 
         // ===== 예시 데이터 로드 =====
