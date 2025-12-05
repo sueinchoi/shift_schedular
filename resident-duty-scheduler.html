@@ -573,7 +573,7 @@
                 <strong>1년차 당직 규칙:</strong><br>
                 • 평일: 당직 1명, 2nd 당직 (월목: 1명, 화수금: 2명)<br>
                 • 주말/휴일: 당직 1명<br>
-                • 간당직 담당자: 화요일 당직 또는 2nd당직 배정, 일/월/수 당직 불가 (4주 기준 1명)
+                • <strong style="color: #c0392b;">[간당직 규칙]</strong> 모든 화요일 당직 또는 2nd당직 <strong>필수 배정</strong> / 일·월·수 당직 불가 (2nd당직은 가능)
             </div>
 
             <!-- 인원 추가 -->
@@ -589,7 +589,10 @@
             <!-- 간당직 담당자 (4주 기준 1명) -->
             <div class="settings-section">
                 <h4>간당직 담당자 (4주 기준 1명)</h4>
-                <p class="small-text">4주 동안 간당직을 담당할 1명을 지정합니다. 간당직자는 화요일에 당직 또는 2nd당직으로 배정됩니다.</p>
+                <p class="small-text">
+                    <strong>절대 조건:</strong> 간당직자는 <span style="color: #c0392b; font-weight: bold;">모든 화요일</span>에 당직 또는 2nd당직으로 반드시 배정됩니다.<br>
+                    <strong>제한:</strong> 일/월/수에는 "당직" 불가 (단, "2nd당직"은 가능)
+                </p>
                 <div id="year1-week-duty" class="week-duty-grid"></div>
             </div>
 
@@ -615,7 +618,7 @@
                 <strong>2년차 당직 규칙:</strong><br>
                 • 평일: 당직 1명, 2nd 당직 (월목: 2명, 화수금: 1명)<br>
                 • 주말/휴일: 당직 1명<br>
-                • 간당직 담당자: 화요일 당직 또는 2nd당직 배정, 일/월/수 당직 불가 (4주 기준 1명)
+                • <strong style="color: #c0392b;">[간당직 규칙]</strong> 모든 화요일 당직 또는 2nd당직 <strong>필수 배정</strong> / 일·월·수 당직 불가 (2nd당직은 가능)
             </div>
 
             <!-- 인원 추가 -->
@@ -631,7 +634,10 @@
             <!-- 간당직 담당자 -->
             <div class="settings-section">
                 <h4>간당직 담당자 (4주 기준 1명)</h4>
-                <p class="small-text">4주 동안 간당직을 담당할 1명을 지정합니다. 간당직자는 화요일에 당직 또는 2nd당직으로 배정됩니다.</p>
+                <p class="small-text">
+                    <strong>절대 조건:</strong> 간당직자는 <span style="color: #c0392b; font-weight: bold;">모든 화요일</span>에 당직 또는 2nd당직으로 반드시 배정됩니다.<br>
+                    <strong>제한:</strong> 일/월/수에는 "당직" 불가 (단, "2nd당직"은 가능)
+                </p>
                 <div id="year2-week-duty" class="week-duty-grid"></div>
             </div>
 
@@ -656,7 +662,7 @@
             <div class="alert alert-info">
                 <strong>시니어 당직 규칙:</strong><br>
                 • 평일/주말/휴일 상관없이 당직 1명<br>
-                • 간당직 담당자: 화요일 당직 또는 2nd당직 배정, 일/월/수 당직 불가 (4주 기준 1명)
+                • <strong style="color: #c0392b;">[간당직 규칙]</strong> 모든 화요일 당직 또는 2nd당직 <strong>필수 배정</strong> / 일·월·수 당직 불가 (2nd당직은 가능)
             </div>
 
             <!-- 인원 추가 -->
@@ -672,7 +678,10 @@
             <!-- 간당직 담당자 -->
             <div class="settings-section">
                 <h4>간당직 담당자 (4주 기준 1명)</h4>
-                <p class="small-text">4주 동안 간당직을 담당할 1명을 지정합니다. 간당직자는 화요일에 당직 또는 2nd당직으로 배정됩니다.</p>
+                <p class="small-text">
+                    <strong>절대 조건:</strong> 간당직자는 <span style="color: #c0392b; font-weight: bold;">모든 화요일</span>에 당직 또는 2nd당직으로 반드시 배정됩니다.<br>
+                    <strong>제한:</strong> 일/월/수에는 "당직" 불가 (단, "2nd당직"은 가능)
+                </p>
                 <div id="senior-week-duty" class="week-duty-grid"></div>
             </div>
 
@@ -1300,9 +1309,28 @@
                 });
             }
 
+            // [검증] 간당직자가 모든 화요일에 배정되었는지 확인
+            let weekDutyWarnings = [];
+            if (weekDutyPerson) {
+                bestSchedule.forEach(daySchedule => {
+                    if (daySchedule.dayOfWeek === 2) { // 화요일
+                        const isAssigned = daySchedule.primaries.includes(weekDutyPerson) ||
+                                          daySchedule.secondaries.includes(weekDutyPerson);
+                        if (!isAssigned) {
+                            weekDutyWarnings.push(daySchedule.date);
+                        }
+                    }
+                });
+            }
+
             renderCalendar(yearType);
             renderStats(yearType);
-            showMessage(yearType, `당직표가 생성되었습니다. (${attempts}번 시도, 균등점수: ${bestScore.toFixed(1)})`, 'success');
+
+            if (weekDutyWarnings.length > 0) {
+                showMessage(yearType, `⚠️ 경고: 간당직자(${weekDutyPerson})가 다음 화요일에 배정되지 않았습니다: ${weekDutyWarnings.join(', ')}. 연속 당직 문제로 인해 발생했을 수 있습니다.`, 'warning');
+            } else {
+                showMessage(yearType, `당직표가 생성되었습니다. (${attempts}번 시도, 균등점수: ${bestScore.toFixed(1)})${weekDutyPerson ? ' - 간당직자 모든 화요일 배정 완료' : ''}`, 'success');
+            }
         }
 
         function calculateBalanceScore(persons) {
@@ -1320,11 +1348,12 @@
         }
 
         function selectPrimary(yearType, persons, schedule, day, dayOfWeek, weekDutyPerson, assignedToday) {
-            // 간당직자 - 화요일에 우선 배정
+            // [절대조건] 간당직자 - 화요일에 반드시 당직 또는 2nd당직으로 배정
+            // 화요일 당직 선택 시: 간당직자를 최우선으로 당직에 배정 시도
             if (dayOfWeek === 2 && weekDutyPerson) {
                 const weekDutyPersonObj = persons.find(p => p.name === weekDutyPerson);
                 if (weekDutyPersonObj && !assignedToday.includes(weekDutyPersonObj) &&
-                    canAssign(weekDutyPersonObj, schedule, day, dayOfWeek)) {
+                    canAssignForWeekDuty(weekDutyPersonObj, schedule, day)) {
                     return weekDutyPersonObj;
                 }
             }
@@ -1367,11 +1396,13 @@
         }
 
         function selectSecondary(yearType, persons, schedule, day, dayOfWeek, weekDutyPerson, assignedToday) {
-            // 간당직자 - 화요일에 당직이 아니면 2nd로 배정
+            // [절대조건] 간당직자 - 화요일에 당직에 배정 안됐으면 반드시 2nd로 배정
             if (dayOfWeek === 2 && weekDutyPerson) {
                 const weekDutyPersonObj = persons.find(p => p.name === weekDutyPerson);
-                if (weekDutyPersonObj && !assignedToday.includes(weekDutyPersonObj) &&
-                    canAssign(weekDutyPersonObj, schedule, day, dayOfWeek)) {
+                // 간당직자가 아직 오늘 배정 안됐으면 반드시 2nd로 배정
+                if (weekDutyPersonObj && !assignedToday.includes(weekDutyPersonObj)) {
+                    // 연속 당직 체크를 하되, 화요일 간당직은 절대조건이므로
+                    // 연속이더라도 강제 배정 (단, 경고 표시)
                     return weekDutyPersonObj;
                 }
             }
@@ -1406,6 +1437,17 @@
             return topCandidates[Math.floor(Math.random() * topCandidates.length)];
         }
 
+        // 간당직자 전용 연속 당직 체크 (화요일 절대조건용)
+        function canAssignForWeekDuty(person, schedule, day) {
+            if (schedule.length > 0) {
+                const yesterday = schedule[schedule.length - 1];
+                if (yesterday.primaries.includes(person.name) || yesterday.secondaries.includes(person.name)) {
+                    return false; // 연속 당직 불가
+                }
+            }
+            return true;
+        }
+
         function canAssign(person, schedule, day, dayOfWeek) {
             // 연속 당직 체크
             if (schedule.length > 0) {
@@ -1418,7 +1460,7 @@
         }
 
         function canAssignPrimary(person, dayOfWeek, weekDutyPerson) {
-            // 간당직자는 일(0), 월(1), 수(3) 당직 불가
+            // 간당직자는 일(0), 월(1), 수(3) "당직" 불가 (2nd당직은 가능!)
             if (person.name === weekDutyPerson) {
                 if (dayOfWeek === 0 || dayOfWeek === 1 || dayOfWeek === 3) {
                     return false;
@@ -1428,6 +1470,7 @@
         }
 
         function canAssignSecondary(person, schedule, day, dayOfWeek) {
+            // 간당직자도 2nd당직은 모든 요일 가능 (일/월/수 포함)
             return canAssign(person, schedule, day, dayOfWeek);
         }
 
