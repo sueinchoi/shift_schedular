@@ -1182,18 +1182,21 @@
                 return;
             }
 
-            // 휴일인지 확인
+            // 휴일인지 확인 - 경고만 표시하고 설정은 허용
             const [year, month, day] = dateStr.split('-').map(Number);
-            if (getHolidayName(year, month, day)) {
-                showMessage('휴일에는 당직을 설정할 수 없습니다.', 'error');
-                return;
+            const holidayName = getHolidayName(year, month, day);
+            if (holidayName && (primary > 0 || secondary > 0)) {
+                if (!confirm(`${dateStr}는 휴일(${holidayName})입니다.\n휴일에 당직을 배정하시겠습니까?`)) {
+                    return;
+                }
             }
 
             dateSpecificDutyCounts[dateStr] = { primary, secondary };
             dateInput.value = '';
 
             renderDateSettings();
-            showMessage(`${dateStr}의 당직 인원이 설정되었습니다.`, 'success');
+            const holidayNote = holidayName ? ` (휴일: ${holidayName})` : '';
+            showMessage(`${dateStr}${holidayNote}의 당직 인원이 설정되었습니다.`, 'success');
         }
 
         // 날짜별 당직 수 설정 목록 렌더링
@@ -1217,8 +1220,13 @@
                 const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
                 const dayName = dayNames[date.getDay()];
 
+                // 휴일인지 확인
+                const [year, month, day] = dateStr.split('-').map(Number);
+                const holidayName = getHolidayName(year, month, day);
+                const holidayBadge = holidayName ? `<span style="background: #c0392b; color: white; padding: 1px 5px; border-radius: 3px; font-size: 10px; margin-left: 5px;">${holidayName}</span>` : '';
+
                 html += `<div class="vacation-item" style="margin: 3px 0; padding: 5px 8px;">
-                    <span>${dateStr} (${dayName}) - 🔴당직: ${setting.primary}명, 🔵2nd: ${setting.secondary}명</span>
+                    <span>${dateStr} (${dayName})${holidayBadge} - 🔴당직: ${setting.primary}명, 🔵2nd: ${setting.secondary}명</span>
                     <button onclick="deleteDateSpecificSetting('${dateStr}')" class="danger" style="padding: 2px 6px; font-size: 10px; margin-left: 5px;">삭제</button>
                 </div>`;
             });
@@ -2462,32 +2470,42 @@
                     const actualDate = dayToDate(dayNumber);
                     const dateStr = actualDate ? formatDate(actualDate) : null;
 
-                    // 휴일 체크 (휴일이면 스킵하지 않고, 당직 수를 0으로 처리)
+                    // 휴일 체크
+                    let isHoliday = false;
+                    let holidayName = null;
+                    if (dateStr) {
+                        const [year, month, dayOfMonth] = dateStr.split('-').map(Number);
+                        holidayName = getHolidayName(year, month, dayOfMonth);
+                        isHoliday = !!holidayName;
+                    }
+
+                    // 당직 수 결정: 날짜별 설정 > 휴일 기본값(0) > 일반 기본값
                     let currentPrimaryCount = primaryCountPerDay;
                     let currentSecondaryCount = secondaryCountPerDay;
 
-                    // 날짜별 당직 수 설정 확인
                     if (dateStr && dateSpecificDutyCounts[dateStr]) {
+                        // 날짜별 설정이 있으면 사용 (휴일이든 아니든)
                         currentPrimaryCount = dateSpecificDutyCounts[dateStr].primary;
                         currentSecondaryCount = dateSpecificDutyCounts[dateStr].secondary;
+                    } else if (isHoliday) {
+                        // 휴일이고 날짜별 설정이 없으면 기본값 0
+                        currentPrimaryCount = 0;
+                        currentSecondaryCount = 0;
                     }
 
-                    // 휴일이면 당직 배정하지 않음
-                    if (dateStr) {
-                        const [year, month, dayOfMonth] = dateStr.split('-').map(Number);
-                        if (getHolidayName(year, month, dayOfMonth)) {
-                            schedule.push({
-                                day: dayNumber,
-                                week: weekNumber,
-                                dayOfWeek: dayOfWeek,
-                                primaries: [],
-                                secondaries: [],
-                                isHoliday: true,
-                                holidayName: getHolidayName(year, month, dayOfMonth),
-                                dateStr: dateStr
-                            });
-                            continue;
-                        }
+                    // 휴일이고 당직이 없는 경우
+                    if (isHoliday && currentPrimaryCount === 0 && currentSecondaryCount === 0) {
+                        schedule.push({
+                            day: dayNumber,
+                            week: weekNumber,
+                            dayOfWeek: dayOfWeek,
+                            primaries: [],
+                            secondaries: [],
+                            isHoliday: true,
+                            holidayName: holidayName,
+                            dateStr: dateStr
+                        });
+                        continue;
                     }
 
                     // 이 날 배정된 인원 추적
@@ -2590,14 +2608,22 @@
 
                     if (!success) break;
 
-                    schedule.push({
+                    const scheduleEntry = {
                         day: dayNumber,
                         week: weekNumber,
                         dayOfWeek: dayOfWeek,
                         primaries: primaries.map(p => p.name),
                         secondaries: secondaries.map(p => p.name),
                         dateStr: dateStr
-                    });
+                    };
+
+                    // 휴일에 당직을 배정한 경우 휴일 정보 추가
+                    if (isHoliday) {
+                        scheduleEntry.isHoliday = true;
+                        scheduleEntry.holidayName = holidayName;
+                    }
+
+                    schedule.push(scheduleEntry);
                 }
 
                 if (success) break;
@@ -2675,31 +2701,41 @@
                     const dateStr = actualDate ? formatDate(actualDate) : null;
 
                     // 휴일 체크
+                    let isHoliday = false;
+                    let holidayName = null;
+                    if (dateStr) {
+                        const [year, month, dayOfMonth] = dateStr.split('-').map(Number);
+                        holidayName = getHolidayName(year, month, dayOfMonth);
+                        isHoliday = !!holidayName;
+                    }
+
+                    // 당직 수 결정: 날짜별 설정 > 휴일 기본값(0) > 일반 기본값
                     let currentPrimaryCount = primaryCountPerDay;
                     let currentSecondaryCount = secondaryCountPerDay;
 
-                    // 날짜별 당직 수 설정 확인
                     if (dateStr && dateSpecificDutyCounts[dateStr]) {
+                        // 날짜별 설정이 있으면 사용 (휴일이든 아니든)
                         currentPrimaryCount = dateSpecificDutyCounts[dateStr].primary;
                         currentSecondaryCount = dateSpecificDutyCounts[dateStr].secondary;
+                    } else if (isHoliday) {
+                        // 휴일이고 날짜별 설정이 없으면 기본값 0
+                        currentPrimaryCount = 0;
+                        currentSecondaryCount = 0;
                     }
 
-                    // 휴일이면 당직 배정하지 않음
-                    if (dateStr) {
-                        const [year, month, dayOfMonth] = dateStr.split('-').map(Number);
-                        if (getHolidayName(year, month, dayOfMonth)) {
-                            tempSchedule.push({
-                                day: dayNumber,
-                                week: weekNumber,
-                                dayOfWeek: dayOfWeek,
-                                primaries: [],
-                                secondaries: [],
-                                isHoliday: true,
-                                holidayName: getHolidayName(year, month, dayOfMonth),
-                                dateStr: dateStr
-                            });
-                            continue;
-                        }
+                    // 휴일이고 당직이 없는 경우
+                    if (isHoliday && currentPrimaryCount === 0 && currentSecondaryCount === 0) {
+                        tempSchedule.push({
+                            day: dayNumber,
+                            week: weekNumber,
+                            dayOfWeek: dayOfWeek,
+                            primaries: [],
+                            secondaries: [],
+                            isHoliday: true,
+                            holidayName: holidayName,
+                            dateStr: dateStr
+                        });
+                        continue;
                     }
 
                     // 이 날 배정된 인원 추적
@@ -2811,14 +2847,22 @@
 
                     if (!success) break;
 
-                    tempSchedule.push({
+                    const scheduleEntry = {
                         day: dayNumber,
                         week: weekNumber,
                         dayOfWeek: dayOfWeek,
                         primaries: primaries.map(p => p.name),
                         secondaries: secondaries.map(p => p.name),
                         dateStr: dateStr
-                    });
+                    };
+
+                    // 휴일에 당직을 배정한 경우 휴일 정보 추가
+                    if (isHoliday) {
+                        scheduleEntry.isHoliday = true;
+                        scheduleEntry.holidayName = holidayName;
+                    }
+
+                    tempSchedule.push(scheduleEntry);
                 }
 
                 if (success && !isDuplicateSchedule(tempSchedule, schedules)) {
@@ -2994,8 +3038,9 @@
                 const dayData = scheduleIndex >= 0 ? schedule[scheduleIndex] : null;
 
                 const isEditing = editingDayIndex === scheduleIndex && scheduleIndex >= 0;
-                // 휴일인 경우 편집 불가
-                const canEdit = dayData && !dayData.isHoliday;
+                // 휴일이고 당직이 없는 경우만 편집 불가, 휴일에 당직이 배정된 경우는 편집 가능
+                const hasDutyAssigned = dayData && (dayData.primaries?.length > 0 || dayData.secondaries?.length > 0);
+                const canEdit = dayData && (!dayData.isHoliday || hasDutyAssigned);
                 const editableClass = canEdit ? 'editable' : '';
                 const manuallyEditedClass = dayData?.manuallyEdited ? 'manually-edited' : '';
                 const editModeClass = isEditing ? 'edit-mode' : '';
@@ -3024,8 +3069,8 @@
                 if (isWeekend) {
                     // 주말
                     html += '<div class="day-info" style="color: #aaa; font-size: 10px;">휴무</div>';
-                } else if (dayData && dayData.isHoliday) {
-                    // 휴일 (평일이지만 휴일로 설정됨)
+                } else if (dayData && dayData.isHoliday && dayData.primaries.length === 0 && dayData.secondaries.length === 0) {
+                    // 휴일이고 당직이 없는 경우
                     html += `<div class="day-info" style="font-size: 10px; color: #888;">Day ${dayNumber}</div>`;
                     html += '<div style="font-size: 11px; color: #c0392b; margin-top: 5px; font-weight: 500;">휴일 - 당직 없음</div>';
                 } else if (dayData) {
