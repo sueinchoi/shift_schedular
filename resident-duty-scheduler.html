@@ -996,9 +996,10 @@
                 name: name,
                 preferredDays: [],  // 선호 요일: [0-6]
                 avoidedDays: [],    // 기피 요일: [0-6]
-                primaryCount: 0,    // 당직 횟수 (1순위 균등)
-                eodangCount: 0,     // 어당 횟수 (2순위 균등): 일/월/화/수/목 당직 (휴일 제외)
-                secondaryCount: 0,  // 2nd당직 횟수 (3순위 균등)
+                primaryCount: 0,    // first당직 총 횟수
+                eodangCount: 0,     // 어당 횟수: 일/월/화/수/목 당직 (휴일 제외) - 가중치 3
+                nonEodangCount: 0,  // 비어당 횟수: 금/토 당직 또는 휴일 당직 - 가중치 2
+                secondaryCount: 0,  // 2nd당직 횟수 - 가중치 1
                 tuesdayCount: 0     // 화요일 당직/2nd 횟수
             };
 
@@ -1182,6 +1183,7 @@
             persons.forEach(p => {
                 p.primaryCount = 0;
                 p.eodangCount = 0;
+                p.nonEodangCount = 0;
                 p.secondaryCount = 0;
                 p.tuesdayCount = 0;
             });
@@ -1200,6 +1202,7 @@
                 persons.forEach(p => {
                     p.primaryCount = 0;
                     p.eodangCount = 0;
+                    p.nonEodangCount = 0;
                     p.secondaryCount = 0;
                     p.tuesdayCount = 0;
                 });
@@ -1248,7 +1251,7 @@
 
                     // 당직자 선택
                     for (let i = 0; i < primaryCount; i++) {
-                        const primary = selectPrimary(yearType, persons, schedule, day, dayOfWeek, weekDutyPerson, assignedToday);
+                        const primary = selectPrimary(yearType, persons, schedule, day, dayOfWeek, weekDutyPerson, assignedToday, holidayName);
                         if (!primary) {
                             success = false;
                             break;
@@ -1257,11 +1260,15 @@
                         assignedToday.push(primary);
                         primary.primaryCount++;
 
-                        // 어당 카운트: 일(0)/월(1)/화(2)/수(3)/목(4) 당직이면서 휴일이 아닌 경우
+                        // 어당/비어당 카운트
+                        // 어당: 일(0)/월(1)/화(2)/수(3)/목(4) 당직이면서 휴일이 아닌 경우
+                        // 비어당: 금(5)/토(6) 당직 또는 휴일인 경우
                         const isEodangDay = dayOfWeek >= 0 && dayOfWeek <= 4; // 일~목
                         const isHolidayDay = !!holidayName;
                         if (isEodangDay && !isHolidayDay) {
                             primary.eodangCount++;
+                        } else {
+                            primary.nonEodangCount++;
                         }
 
                         if (dayOfWeek === 2) primary.tuesdayCount++;
@@ -1295,6 +1302,7 @@
                             name: p.name,
                             primaryCount: p.primaryCount,
                             eodangCount: p.eodangCount,
+                            nonEodangCount: p.nonEodangCount,
                             secondaryCount: p.secondaryCount,
                             tuesdayCount: p.tuesdayCount
                         })),
@@ -1340,6 +1348,7 @@
                     if (person) {
                         person.primaryCount = pc.primaryCount;
                         person.eodangCount = pc.eodangCount;
+                        person.nonEodangCount = pc.nonEodangCount;
                         person.secondaryCount = pc.secondaryCount;
                         person.tuesdayCount = pc.tuesdayCount;
                     }
@@ -1370,18 +1379,24 @@
                 const scoreDetails = bestCandidate.scoreDetails;
                 showMessage(yearType, `당직표 ${topCandidates.length}개 후보 생성 완료 (${attempts}번 시도)\n` +
                     `균등도: first당직차이(${scoreDetails.primaryDiff}) | ` +
-                    `어당차이(${scoreDetails.eodangDiff}) | ` +
+                    `가중치부담차이(${scoreDetails.burdenDiff}) | ` +
                     `전체당직차이(${scoreDetails.totalDiff})` +
                     (weekDutyPerson ? ' - 간당직자 모든 화요일 배정 완료' : ''), 'success');
             }
         }
 
         function calculateBalanceScore(persons) {
-            // 우선순위 기반 균등 배분 (차이가 작을수록 좋음)
+            // 가중치 기반 균등 배분
+            //
+            // 가중치: 어당(3) > 비어당(2) > 2nd(1)
+            // 가중치 부담 = (어당 × 3) + (비어당 × 2) + (2nd × 1)
             //
             // 1순위: first당직 횟수 균등 (절대 우선)
-            // 2순위: 어당 횟수 균등 (first당직 많으면 어당도 많게)
-            // 3순위: 전체당직(first+2nd) 균등 (first당직 많으면 2nd 줄여서 총합 맞춤)
+            // 2순위: 가중치 부담 균등 (first당직 많으면 어당 비중 높여서 부담 균형)
+
+            const WEIGHT_EODANG = 3;      // 어당 (일~목, 휴일제외)
+            const WEIGHT_NON_EODANG = 2;  // 비어당 (금/토 또는 휴일)
+            const WEIGHT_SECONDARY = 1;   // 2nd당직
 
             // 1순위: first 당직 균등 (max - min 차이)
             const primaryValues = persons.map(p => p.primaryCount);
@@ -1389,35 +1404,43 @@
             const primaryMin = Math.min(...primaryValues);
             const primaryDiff = primaryMax - primaryMin;
 
-            // 2순위: 어당 균등
-            // first당직 많은 사람은 어당도 많게 (비례 배분)
-            const eodangValues = persons.map(p => p.eodangCount || 0);
-            const eodangMax = Math.max(...eodangValues);
-            const eodangMin = Math.min(...eodangValues);
-            const eodangDiff = eodangMax - eodangMin;
+            // 2순위: 가중치 부담 균등
+            const burdenValues = persons.map(p => {
+                const eodang = p.eodangCount || 0;
+                const nonEodang = p.nonEodangCount || 0;
+                const secondary = p.secondaryCount || 0;
+                return (eodang * WEIGHT_EODANG) + (nonEodang * WEIGHT_NON_EODANG) + (secondary * WEIGHT_SECONDARY);
+            });
+            const burdenMax = Math.max(...burdenValues);
+            const burdenMin = Math.min(...burdenValues);
+            const burdenDiff = burdenMax - burdenMin;
 
-            // 3순위: 전체당직(first + 2nd) 균등
-            // first당직 많은 사람은 2nd 줄여서 총합 맞춤
+            // 전체당직(first + 2nd) 차이 (참고용)
             const totalValues = persons.map(p => p.primaryCount + p.secondaryCount);
             const totalMax = Math.max(...totalValues);
             const totalMin = Math.min(...totalValues);
             const totalDiff = totalMax - totalMin;
 
             // 점수: 차이가 작을수록 좋음 (0이 최고)
-            const score = -(primaryDiff * 10000 + eodangDiff * 100 + totalDiff);
+            // 1순위 >> 2순위
+            const score = -(primaryDiff * 10000 + burdenDiff * 100 + totalDiff);
 
             return {
                 total: score,
                 primaryDiff: primaryDiff,
-                eodangDiff: eodangDiff,
-                totalDiff: totalDiff
+                burdenDiff: burdenDiff,
+                totalDiff: totalDiff,
+                burdenValues: burdenValues
             };
         }
 
-        function selectPrimary(yearType, persons, schedule, day, dayOfWeek, weekDutyPerson, assignedToday) {
+        function selectPrimary(yearType, persons, schedule, day, dayOfWeek, weekDutyPerson, assignedToday, holidayName) {
             // 간당직자는 화요일에 first 또는 2nd 중 하나에 배정되면 됨
             // first당직 선택은 균등 배분 우선으로 진행 (간당직자 우선권 없음)
             // 만약 first에 배정 안되면 selectSecondary에서 2nd로 배정됨
+
+            // 오늘이 어당 날인지 확인
+            const isEodangDay = (dayOfWeek >= 0 && dayOfWeek <= 4) && !holidayName;
 
             // 후보자 필터링
             let candidates = persons.filter(p =>
@@ -1444,25 +1467,25 @@
                 candidates = nonAvoidedCandidates;
             }
 
+            // 가중치: 어당(3), 비어당(2), 2nd(1)
+            const calcBurden = (p) => {
+                return (p.eodangCount || 0) * 3 + (p.nonEodangCount || 0) * 2 + (p.secondaryCount || 0) * 1;
+            };
+
             // 우선순위 기반 정렬
             // 1순위: first당직 횟수 균등 (적은 사람 우선)
-            // 2순위: 어당 횟수 균등 (적은 사람 우선)
-            // 3순위: 전체당직(first+2nd) 균등 (적은 사람 우선)
+            // 2순위: 가중치 부담 균등 (적은 사람 우선)
+            //       - 어당 날: first당직 많은 사람에게 어당 배정 → 가중치 부담 높아짐
+            //       - 비어당 날: first당직 적은 사람에게 비어당 배정 → 가중치 부담 균형
             candidates.sort((a, b) => {
                 // 1순위: first 당직 횟수 (낮을수록 우선)
                 if (a.primaryCount !== b.primaryCount) {
                     return a.primaryCount - b.primaryCount;
                 }
-                // 2순위: 어당 횟수 (낮을수록 우선)
-                const aEodang = a.eodangCount || 0;
-                const bEodang = b.eodangCount || 0;
-                if (aEodang !== bEodang) {
-                    return aEodang - bEodang;
-                }
-                // 3순위: 전체당직수 (낮을수록 우선)
-                const aTotal = a.primaryCount + a.secondaryCount;
-                const bTotal = b.primaryCount + b.secondaryCount;
-                return aTotal - bTotal;
+                // 2순위: 가중치 부담 (낮을수록 우선)
+                const aBurden = calcBurden(a);
+                const bBurden = calcBurden(b);
+                return aBurden - bBurden;
             });
 
             // 당직 횟수가 최소인 후보 중에서 랜덤 선택
@@ -1506,20 +1529,22 @@
                 candidates = nonAvoidedCandidates;
             }
 
-            // 전체당직(first+2nd) 균등 - first당직 많은 사람은 2nd 줄여줌
+            // 가중치 부담 균등 - 부담 적은 사람에게 2nd 배정
+            const calcBurden = (p) => {
+                return (p.eodangCount || 0) * 3 + (p.nonEodangCount || 0) * 2 + (p.secondaryCount || 0) * 1;
+            };
+
             candidates.sort((a, b) => {
-                const aTotal = a.primaryCount + a.secondaryCount;
-                const bTotal = b.primaryCount + b.secondaryCount;
-                if (aTotal !== bTotal) {
-                    return aTotal - bTotal; // 전체당직 적은 사람 우선
+                const aBurden = calcBurden(a);
+                const bBurden = calcBurden(b);
+                if (aBurden !== bBurden) {
+                    return aBurden - bBurden; // 가중치 부담 적은 사람 우선
                 }
                 return a.secondaryCount - b.secondaryCount;
             });
 
-            const minTotal = candidates[0].primaryCount + candidates[0].secondaryCount;
-            const topCandidates = candidates.filter(c =>
-                (c.primaryCount + c.secondaryCount) <= minTotal + 1
-            );
+            const minBurden = calcBurden(candidates[0]);
+            const topCandidates = candidates.filter(c => calcBurden(c) <= minBurden + 1);
             return topCandidates[Math.floor(Math.random() * topCandidates.length)];
         }
 
@@ -1587,8 +1612,8 @@
                 <div class="settings-section" style="margin-top: 15px;">
                     <h4>후보 스케줄 선택 (${candidates.length}개)</h4>
                     <p class="small-text">
-                        <strong>균등 기준:</strong> first당직(1순위) → 어당(2순위) → 전체당직(3순위)<br>
-                        <span style="color: #666;">first당직 많으면 → 어당도 많게, 2nd 줄여서 전체 맞춤</span>
+                        <strong>가중치:</strong> 어당(×3) > 비어당(×2) > 2nd(×1)<br>
+                        <span style="color: #666;">first당직 균등 후 가중치 부담으로 균형 맞춤</span>
                     </p>
                     <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
             `;
@@ -1599,7 +1624,7 @@
                 const btnClass = isSelected ? 'primary' : 'secondary';
 
                 // 차이가 0이면 녹색, 아니면 주황/빨강
-                const getDiffColor = (diff) => diff === 0 ? '#27ae60' : diff === 1 ? '#f39c12' : '#e74c3c';
+                const getDiffColor = (diff) => diff === 0 ? '#27ae60' : diff <= 2 ? '#f39c12' : '#e74c3c';
 
                 html += `
                     <div class="candidate-card" style="background: ${isSelected ? '#e8f4fd' : '#f8f9fa'};
@@ -1608,7 +1633,7 @@
                         <div style="font-weight: 600; margin-bottom: 5px;">후보 ${idx + 1}</div>
                         <div style="font-size: 11px;">
                             <div style="color: ${getDiffColor(scores.primaryDiff)};">first당직차이: ${scores.primaryDiff}</div>
-                            <div style="color: ${getDiffColor(scores.eodangDiff)};">어당차이: ${scores.eodangDiff}</div>
+                            <div style="color: ${getDiffColor(scores.burdenDiff)};">가중치부담차이: ${scores.burdenDiff}</div>
                             <div style="color: ${getDiffColor(scores.totalDiff)};">전체당직차이: ${scores.totalDiff}</div>
                         </div>
                         <button onclick="selectCandidate('${yearType}', ${idx})"
@@ -1644,6 +1669,7 @@
                 if (person) {
                     person.primaryCount = pc.primaryCount;
                     person.eodangCount = pc.eodangCount;
+                    person.nonEodangCount = pc.nonEodangCount;
                     person.secondaryCount = pc.secondaryCount;
                     person.tuesdayCount = pc.tuesdayCount;
                 }
@@ -1656,7 +1682,7 @@
             const scores = candidate.scoreDetails;
             showMessage(yearType, `후보 ${index + 1} 선택됨 - ` +
                 `first당직차이: ${scores.primaryDiff}, ` +
-                `어당차이: ${scores.eodangDiff}, ` +
+                `가중치부담차이: ${scores.burdenDiff}, ` +
                 `전체당직차이: ${scores.totalDiff}`, 'info');
         }
 
@@ -1742,25 +1768,34 @@
                 return;
             }
 
+            // 가중치 상수
+            const WEIGHT_EODANG = 3;
+            const WEIGHT_NON_EODANG = 2;
+            const WEIGHT_SECONDARY = 1;
+
             // 차이 계산 (max - min)
             const primaryValues = persons.map(p => p.primaryCount);
-            const eodangValues = persons.map(p => p.eodangCount || 0);
+            const burdenValues = persons.map(p => {
+                return (p.eodangCount || 0) * WEIGHT_EODANG +
+                       (p.nonEodangCount || 0) * WEIGHT_NON_EODANG +
+                       (p.secondaryCount || 0) * WEIGHT_SECONDARY;
+            });
             const totalValues = persons.map(p => p.primaryCount + p.secondaryCount);
 
             const calcDiff = (arr) => Math.max(...arr) - Math.min(...arr);
-            const getDiffColor = (diff) => diff === 0 ? '#27ae60' : diff === 1 ? '#f39c12' : '#e74c3c';
+            const getDiffColor = (diff, threshold) => diff === 0 ? '#27ae60' : diff <= threshold ? '#f39c12' : '#e74c3c';
 
             const primaryDiff = calcDiff(primaryValues);
-            const eodangDiff = calcDiff(eodangValues);
+            const burdenDiff = calcDiff(burdenValues);
             const totalDiff = calcDiff(totalValues);
 
             let html = `
                 <h3>통계 (4주 기준)</h3>
                 <div class="alert alert-info" style="margin-bottom: 15px;">
-                    <strong>균등 분포 현황</strong> (차이가 0이면 완벽히 균등)<br>
-                    <span style="color: ${getDiffColor(primaryDiff)}; font-weight: 600;">1순위 first당직차이: ${primaryDiff}</span> |
-                    <span style="color: ${getDiffColor(eodangDiff)}; font-weight: 600;">2순위 어당차이: ${eodangDiff}</span> |
-                    <span style="color: ${getDiffColor(totalDiff)}; font-weight: 600;">3순위 전체당직차이: ${totalDiff}</span>
+                    <strong>균등 분포 현황</strong><br>
+                    <span style="color: ${getDiffColor(primaryDiff, 1)}; font-weight: 600;">1순위 first당직차이: ${primaryDiff}</span> |
+                    <span style="color: ${getDiffColor(burdenDiff, 2)}; font-weight: 600;">2순위 가중치부담차이: ${burdenDiff}</span> |
+                    <span style="color: ${getDiffColor(totalDiff, 1)}; font-weight: 600;">전체당직차이: ${totalDiff}</span>
                 </div>
                 <div class="stats-grid">
             `;
@@ -1768,23 +1803,34 @@
             persons.forEach(person => {
                 const total = person.primaryCount + person.secondaryCount;
                 const eodang = person.eodangCount || 0;
+                const nonEodang = person.nonEodangCount || 0;
+                const burden = eodang * WEIGHT_EODANG + nonEodang * WEIGHT_NON_EODANG + person.secondaryCount * WEIGHT_SECONDARY;
+
                 html += `
                     <div class="stat-card">
                         <h4>${person.name}</h4>
                         <div class="stat-row">
-                            <span class="stat-label">first당직 (1순위)</span>
+                            <span class="stat-label">first당직</span>
                             <span class="stat-value" style="color: #c0392b;">${person.primaryCount}회</span>
                         </div>
-                        <div class="stat-row">
-                            <span class="stat-label">어당 (2순위)</span>
-                            <span class="stat-value" style="color: #2980b9;">${eodang}회</span>
+                        <div class="stat-row" style="font-size: 11px; padding-left: 10px;">
+                            <span class="stat-label">- 어당 (×3)</span>
+                            <span class="stat-value">${eodang}회</span>
+                        </div>
+                        <div class="stat-row" style="font-size: 11px; padding-left: 10px;">
+                            <span class="stat-label">- 비어당 (×2)</span>
+                            <span class="stat-value">${nonEodang}회</span>
                         </div>
                         <div class="stat-row">
-                            <span class="stat-label">2nd당직</span>
+                            <span class="stat-label">2nd당직 (×1)</span>
                             <span class="stat-value">${person.secondaryCount}회</span>
                         </div>
+                        <div class="stat-row" style="border-top: 1px solid #eee; padding-top: 5px; margin-top: 5px;">
+                            <span class="stat-label">가중치 부담</span>
+                            <span class="stat-value" style="color: #2980b9; font-weight: 600;">${burden}</span>
+                        </div>
                         <div class="stat-row">
-                            <span class="stat-label">전체당직 (3순위)</span>
+                            <span class="stat-label">전체당직</span>
                             <span class="stat-value" style="color: #27ae60;">${total}회</span>
                         </div>
                     </div>
@@ -1796,8 +1842,9 @@
             // 설명 추가
             html += `
                 <p class="small-text" style="margin-top: 10px;">
-                    <strong>균등 기준:</strong> first당직 많으면 → 어당도 많게, 2nd 줄여서 전체당직 맞춤<br>
-                    <strong>어당이란?</strong> 일/월/화/수/목 first당직 중 휴일이 아닌 날의 당직 횟수입니다.
+                    <strong>가중치 부담</strong> = (어당 × 3) + (비어당 × 2) + (2nd × 1)<br>
+                    <strong>어당:</strong> 일~목 first당직 (휴일 제외) | <strong>비어당:</strong> 금/토 first당직 또는 휴일<br>
+                    first당직 균등 → 가중치 부담 균등 순으로 최적화
                 </p>
             `;
 
@@ -2012,6 +2059,7 @@
                 avoidedDays: p.avoidedDays || [],
                 primaryCount: 0,
                 eodangCount: 0,
+                nonEodangCount: 0,
                 secondaryCount: 0,
                 tuesdayCount: 0
             }));
