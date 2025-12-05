@@ -1369,9 +1369,9 @@
             } else {
                 const scoreDetails = bestCandidate.scoreDetails;
                 showMessage(yearType, `당직표 ${topCandidates.length}개 후보 생성 완료 (${attempts}번 시도)\n` +
-                    `균등도: 당직차이(${scoreDetails.primaryDiff}) | ` +
+                    `균등도: first당직차이(${scoreDetails.primaryDiff}) | ` +
                     `실효부담차이(${scoreDetails.burdenDiff}) | ` +
-                    `2nd차이(${scoreDetails.secondaryDiff})` +
+                    `전체당직차이(${scoreDetails.totalDiff})` +
                     (weekDutyPerson ? ' - 간당직자 모든 화요일 배정 완료' : ''), 'success');
             }
         }
@@ -1379,11 +1379,11 @@
         function calculateBalanceScore(persons) {
             // 우선순위 기반 균등 배분 (차이가 작을수록 좋음)
             //
-            // 1순위: 당직 횟수 균등 (절대 우선)
+            // 1순위: first 당직 횟수 균등 (절대 우선)
             // 2순위: 실효부담(당직+어당) 균등 - 당직이 1 적으면 어당이 1 많아서 보전
-            // 3순위: 2nd당직 균등
+            // 3순위: 전체 당직수(first + 2nd) 균등
 
-            // 1순위: 당직 균등 (max - min 차이)
+            // 1순위: first 당직 균등 (max - min 차이)
             const primaryValues = persons.map(p => p.primaryCount);
             const primaryMax = Math.max(...primaryValues);
             const primaryMin = Math.min(...primaryValues);
@@ -1397,21 +1397,21 @@
             const burdenMin = Math.min(...burdenValues);
             const burdenDiff = burdenMax - burdenMin;
 
-            // 3순위: 2nd당직 균등
-            const secondaryValues = persons.map(p => p.secondaryCount);
-            const secondaryMax = Math.max(...secondaryValues);
-            const secondaryMin = Math.min(...secondaryValues);
-            const secondaryDiff = secondaryMax - secondaryMin;
+            // 3순위: 전체 당직수(first + 2nd) 균등
+            const totalValues = persons.map(p => p.primaryCount + p.secondaryCount);
+            const totalMax = Math.max(...totalValues);
+            const totalMin = Math.min(...totalValues);
+            const totalDiff = totalMax - totalMin;
 
             // 점수: 차이가 작을수록 좋음 (0이 최고)
             // 우선순위에 따라 엄격한 가중치 적용 (1순위 >> 2순위 >> 3순위)
-            const score = -(primaryDiff * 10000 + burdenDiff * 100 + secondaryDiff);
+            const score = -(primaryDiff * 10000 + burdenDiff * 100 + totalDiff);
 
             return {
                 total: score,
                 primaryDiff: primaryDiff,
                 burdenDiff: burdenDiff,
-                secondaryDiff: secondaryDiff
+                totalDiff: totalDiff
             };
         }
 
@@ -1452,11 +1452,11 @@
             }
 
             // 우선순위 기반 정렬
-            // 1순위: 당직 횟수 균등 (적은 사람 우선)
+            // 1순위: first 당직 횟수 균등 (적은 사람 우선)
             // 2순위: 실효부담(당직+어당) 균등 (적은 사람 우선)
-            // 3순위: 2nd당직 횟수 균등 (적은 사람 우선)
+            // 3순위: 전체 당직수(first+2nd) 균등 (적은 사람 우선)
             candidates.sort((a, b) => {
-                // 1순위: 당직 횟수 (낮을수록 우선)
+                // 1순위: first 당직 횟수 (낮을수록 우선)
                 if (a.primaryCount !== b.primaryCount) {
                     return a.primaryCount - b.primaryCount;
                 }
@@ -1466,8 +1466,10 @@
                 if (aBurden !== bBurden) {
                     return aBurden - bBurden;
                 }
-                // 3순위: 2nd당직 횟수 (낮을수록 우선)
-                return a.secondaryCount - b.secondaryCount;
+                // 3순위: 전체 당직수 (낮을수록 우선)
+                const aTotal = a.primaryCount + a.secondaryCount;
+                const bTotal = b.primaryCount + b.secondaryCount;
+                return aTotal - bTotal;
             });
 
             // 당직 횟수가 최소인 후보 중에서 랜덤 선택
@@ -1579,7 +1581,7 @@
                 <div class="settings-section" style="margin-top: 15px;">
                     <h4>후보 스케줄 선택 (${candidates.length}개)</h4>
                     <p class="small-text">
-                        <strong>균등 기준:</strong> 당직차이(1순위) → 실효부담차이(2순위) → 2nd차이(3순위)<br>
+                        <strong>균등 기준:</strong> first당직차이(1순위) → 실효부담차이(2순위) → 전체당직차이(3순위)<br>
                         <span style="color: #666;">실효부담 = 당직 + 어당 (당직 1 적으면 어당 1 더 많아야 보전)</span>
                     </p>
                     <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
@@ -1599,9 +1601,9 @@
                          border-radius: 8px; padding: 10px; min-width: 160px;">
                         <div style="font-weight: 600; margin-bottom: 5px;">후보 ${idx + 1}</div>
                         <div style="font-size: 11px;">
-                            <div style="color: ${getDiffColor(scores.primaryDiff)};">당직차이: ${scores.primaryDiff}</div>
+                            <div style="color: ${getDiffColor(scores.primaryDiff)};">first당직차이: ${scores.primaryDiff}</div>
                             <div style="color: ${getDiffColor(scores.burdenDiff)};">실효부담차이: ${scores.burdenDiff}</div>
-                            <div style="color: ${getDiffColor(scores.secondaryDiff)};">2nd차이: ${scores.secondaryDiff}</div>
+                            <div style="color: ${getDiffColor(scores.totalDiff)};">전체당직차이: ${scores.totalDiff}</div>
                         </div>
                         <button onclick="selectCandidate('${yearType}', ${idx})"
                                 class="${btnClass}"
@@ -1647,9 +1649,9 @@
 
             const scores = candidate.scoreDetails;
             showMessage(yearType, `후보 ${index + 1} 선택됨 - ` +
-                `당직차이: ${scores.primaryDiff}, ` +
+                `first당직차이: ${scores.primaryDiff}, ` +
                 `실효부담차이: ${scores.burdenDiff}, ` +
-                `2nd차이: ${scores.secondaryDiff}`, 'info');
+                `전체당직차이: ${scores.totalDiff}`, 'info');
         }
 
         // ===== 캘린더 렌더링 =====
@@ -1737,22 +1739,22 @@
             // 차이 계산 (max - min)
             const primaryValues = persons.map(p => p.primaryCount);
             const burdenValues = persons.map(p => p.primaryCount + (p.eodangCount || 0));
-            const secondaryValues = persons.map(p => p.secondaryCount);
+            const totalValues = persons.map(p => p.primaryCount + p.secondaryCount);
 
             const calcDiff = (arr) => Math.max(...arr) - Math.min(...arr);
             const getDiffColor = (diff) => diff === 0 ? '#27ae60' : diff === 1 ? '#f39c12' : '#e74c3c';
 
             const primaryDiff = calcDiff(primaryValues);
             const burdenDiff = calcDiff(burdenValues);
-            const secondaryDiff = calcDiff(secondaryValues);
+            const totalDiff = calcDiff(totalValues);
 
             let html = `
                 <h3>통계 (4주 기준)</h3>
                 <div class="alert alert-info" style="margin-bottom: 15px;">
                     <strong>균등 분포 현황</strong> (차이가 0이면 완벽히 균등)<br>
-                    <span style="color: ${getDiffColor(primaryDiff)}; font-weight: 600;">1순위 당직차이: ${primaryDiff}</span> |
+                    <span style="color: ${getDiffColor(primaryDiff)}; font-weight: 600;">1순위 first당직차이: ${primaryDiff}</span> |
                     <span style="color: ${getDiffColor(burdenDiff)}; font-weight: 600;">2순위 실효부담차이: ${burdenDiff}</span> |
-                    <span style="color: ${getDiffColor(secondaryDiff)}; font-weight: 600;">3순위 2nd차이: ${secondaryDiff}</span>
+                    <span style="color: ${getDiffColor(totalDiff)}; font-weight: 600;">3순위 전체당직차이: ${totalDiff}</span>
                 </div>
                 <div class="stats-grid">
             `;
@@ -1765,7 +1767,7 @@
                     <div class="stat-card">
                         <h4>${person.name}</h4>
                         <div class="stat-row">
-                            <span class="stat-label">당직 (1순위)</span>
+                            <span class="stat-label">first당직 (1순위)</span>
                             <span class="stat-value" style="color: #c0392b;">${person.primaryCount}회</span>
                         </div>
                         <div class="stat-row">
@@ -1777,12 +1779,12 @@
                             <span class="stat-value" style="color: #2980b9;">${burden}</span>
                         </div>
                         <div class="stat-row">
-                            <span class="stat-label">2nd (3순위)</span>
-                            <span class="stat-value" style="color: #27ae60;">${person.secondaryCount}회</span>
+                            <span class="stat-label">2nd당직</span>
+                            <span class="stat-value">${person.secondaryCount}회</span>
                         </div>
                         <div class="stat-row">
-                            <span class="stat-label">화요일</span>
-                            <span class="stat-value">${person.tuesdayCount || 0}회</span>
+                            <span class="stat-label">전체당직 (3순위)</span>
+                            <span class="stat-value" style="color: #27ae60;">${total}회</span>
                         </div>
                     </div>
                 `;
@@ -1793,8 +1795,8 @@
             // 실효부담 설명 추가
             html += `
                 <p class="small-text" style="margin-top: 10px;">
-                    <strong>실효부담이란?</strong> 당직 + 어당 = 실효부담. 당직이 1회 적은 사람은 어당이 1회 많아야 총 부담이 보전됩니다.<br>
-                    <strong>어당이란?</strong> 일/월/화/수/목 당직 중 휴일이 아닌 날의 당직 횟수입니다.
+                    <strong>실효부담이란?</strong> first당직 + 어당 = 실효부담. first당직이 1회 적은 사람은 어당이 1회 많아야 총 부담이 보전됩니다.<br>
+                    <strong>어당이란?</strong> 일/월/화/수/목 first당직 중 휴일이 아닌 날의 당직 횟수입니다.
                 </p>
             `;
 
@@ -1981,25 +1983,25 @@
         function loadExampleData(yearType) {
             const examplePersons = {
                 year1: [
-                    { name: '김민수', preferredDays: [2, 4], avoidedDays: [0] },
-                    { name: '이영희', preferredDays: [1], avoidedDays: [5, 6] },
-                    { name: '박철수', preferredDays: [], avoidedDays: [0, 6] },
-                    { name: '정수진', preferredDays: [3], avoidedDays: [] },
-                    { name: '최동현', preferredDays: [5], avoidedDays: [1] },
-                    { name: '한미영', preferredDays: [], avoidedDays: [2] }
+                    { name: '김민수' },
+                    { name: '이영희' },
+                    { name: '박철수' },
+                    { name: '정수진' },
+                    { name: '최동현' },
+                    { name: '한미영' }
                 ],
                 year2: [
-                    { name: '강지훈', preferredDays: [1, 4], avoidedDays: [] },
-                    { name: '윤서연', preferredDays: [], avoidedDays: [0, 6] },
-                    { name: '임태현', preferredDays: [2], avoidedDays: [5] },
-                    { name: '송지은', preferredDays: [3, 5], avoidedDays: [] },
-                    { name: '황민호', preferredDays: [], avoidedDays: [1, 3] }
+                    { name: '강지훈' },
+                    { name: '윤서연' },
+                    { name: '임태현' },
+                    { name: '송지은' },
+                    { name: '황민호' }
                 ],
                 senior: [
-                    { name: '오승현', preferredDays: [1], avoidedDays: [0] },
-                    { name: '신예진', preferredDays: [], avoidedDays: [5, 6] },
-                    { name: '류현우', preferredDays: [4], avoidedDays: [] },
-                    { name: '홍지민', preferredDays: [2, 3], avoidedDays: [] }
+                    { name: '오승현' },
+                    { name: '신예진' },
+                    { name: '류현우' },
+                    { name: '홍지민' }
                 ]
             };
 
