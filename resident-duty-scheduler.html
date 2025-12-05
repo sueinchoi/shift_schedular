@@ -1388,14 +1388,14 @@
         function calculateBalanceScore(persons) {
             // 가중치 기반 균등 배분
             //
-            // 가중치: 어당(3) > 비어당(2) > 2nd(1)
-            // 가중치 부담 = (어당 × 3) + (비어당 × 2) + (2nd × 1)
+            // 가중치: 비어당(3) > 어당(2) > 2nd(1) - 비어당이 가장 힘듦
+            // 가중치 부담 = (비어당 × 3) + (어당 × 2) + (2nd × 1)
             //
             // 1순위: first당직 횟수 균등 (절대 우선)
             // 2순위: 가중치 부담 균등 (first당직 많으면 어당 비중 높여서 부담 균형)
 
-            const WEIGHT_EODANG = 3;      // 어당 (일~목, 휴일제외)
-            const WEIGHT_NON_EODANG = 2;  // 비어당 (금/토 또는 휴일)
+            const WEIGHT_NON_EODANG = 3;  // 비어당 (금/토 또는 휴일) - 가장 힘듦
+            const WEIGHT_EODANG = 2;      // 어당 (일~목, 휴일제외)
             const WEIGHT_SECONDARY = 1;   // 2nd당직
 
             // 1순위: first 당직 균등 (max - min 차이)
@@ -1467,9 +1467,9 @@
                 candidates = nonAvoidedCandidates;
             }
 
-            // 가중치: 어당(3), 비어당(2), 2nd(1)
+            // 가중치: 비어당(3), 어당(2), 2nd(1) - 비어당이 가장 힘듦
             const calcBurden = (p) => {
-                return (p.eodangCount || 0) * 3 + (p.nonEodangCount || 0) * 2 + (p.secondaryCount || 0) * 1;
+                return (p.nonEodangCount || 0) * 3 + (p.eodangCount || 0) * 2 + (p.secondaryCount || 0) * 1;
             };
 
             // 우선순위 기반 정렬
@@ -1529,9 +1529,9 @@
                 candidates = nonAvoidedCandidates;
             }
 
-            // 가중치 부담 균등 - 부담 적은 사람에게 2nd 배정
+            // 가중치 부담 균등 - 부담 적은 사람에게 2nd 배정 (비어당×3, 어당×2, 2nd×1)
             const calcBurden = (p) => {
-                return (p.eodangCount || 0) * 3 + (p.nonEodangCount || 0) * 2 + (p.secondaryCount || 0) * 1;
+                return (p.nonEodangCount || 0) * 3 + (p.eodangCount || 0) * 2 + (p.secondaryCount || 0) * 1;
             };
 
             candidates.sort((a, b) => {
@@ -1768,9 +1768,9 @@
                 return;
             }
 
-            // 가중치 상수
-            const WEIGHT_EODANG = 3;
-            const WEIGHT_NON_EODANG = 2;
+            // 가중치 상수 (비어당이 가장 힘듦)
+            const WEIGHT_NON_EODANG = 3;  // 비어당 - 가장 힘듦
+            const WEIGHT_EODANG = 2;
             const WEIGHT_SECONDARY = 1;
 
             // 차이 계산 (max - min)
@@ -1814,12 +1814,12 @@
                             <span class="stat-value" style="color: #c0392b;">${person.primaryCount}회</span>
                         </div>
                         <div class="stat-row" style="font-size: 11px; padding-left: 10px;">
-                            <span class="stat-label">- 어당 (×3)</span>
-                            <span class="stat-value">${eodang}회</span>
+                            <span class="stat-label">- 비어당 (×3)</span>
+                            <span class="stat-value">${nonEodang}회</span>
                         </div>
                         <div class="stat-row" style="font-size: 11px; padding-left: 10px;">
-                            <span class="stat-label">- 비어당 (×2)</span>
-                            <span class="stat-value">${nonEodang}회</span>
+                            <span class="stat-label">- 어당 (×2)</span>
+                            <span class="stat-value">${eodang}회</span>
                         </div>
                         <div class="stat-row">
                             <span class="stat-label">2nd당직 (×1)</span>
